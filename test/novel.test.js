@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   kanjiNumber, parseKanjiNumber, isSectionId, sectionOrder, countChars,
   parseChapterTitles, parseSectionMeta, insertIntoInbox, parseInboxMarkers, formatInboxEntry,
-} from '../server/novel.js';
+} from '../shared/novel.js';
 
 test('漢数字の変換', () => {
   assert.equal(kanjiNumber(1), '一');

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { diffTexts, diffChars, locateQuote } from '../server/diff.js';
+import { diffTexts, diffChars, locateQuote } from '../shared/diff.js';
 
 test('書き直された行は文字単位で並ぶ', () => {
   const before = '　湊は窓を見た。\n「山です」\n　女子は笑った。';

@@ -1,0 +1,40 @@
+# 校正室 — Cloudflare Workers 版の設定
+#
+#   wrangler d1 create proofreading            # 作って、下の database_id を書き換える
+#   wrangler d1 execute proofreading --remote --file=worker/schema.sql
+#   wrangler secret put GITHUB_TOKEN           # Contents: Read and write の細かい権限トークン
+#   wrangler deploy
+
+name = "proofreading"
+main = "worker/index.js"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# 画面（縦書きの読み手）はここから配信する
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "none"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "proofreading"
+database_id = "ここに wrangler d1 create の出力を貼る"
+
+[vars]
+# 作品の登録。増やすときはこの配列に足して deploy し直す
+NOVELS = '{"novels":[{"id":"novel1","title":"烏川高校山岳部（仮題）","repo":"https://github.com/tsco23/novel1","branch":"claude/novel-writing-constraints-wuury5"}]}'
+
+# ログインを保つ日数
+SESSION_DAYS = "30"
+
+# パスワードの鍛え回数。
+# Workers の無料枠は 1 リクエスト 10ms までなので、無料枠で使うなら 10000 前後まで下げる。
+# 有料（Workers Paid）ならこのままでよい。
+PBKDF2_ITERATIONS = "100000"
+
+# 招待コードを入れると、校正者が自分で登録できるようになる
+# INVITE_CODE = "yamanoue"
+
+# http で試すときだけ "0"（Cookie の Secure を外す）
+# SECURE_COOKIE = "0"

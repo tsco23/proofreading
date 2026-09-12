@@ -2,7 +2,7 @@
   "name": "proofreading",
   "version": "1.0.0",
   "private": true,
-  "description": "執筆中の小説リポジトリを縦書きで読み、指摘を review/inbox.md へ書き戻す校正用ウェブアプリ",
+  "description": "執筆中の小説リポジトリを縦書きで読み、指摘を review/inbox.md へ書き戻す校正用ウェブアプリ（自前サーバ／Cloudflare Workers の両対応）",
   "type": "module",
   "engines": {
     "node": ">=20.11"
@@ -11,6 +11,14 @@
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
     "user:add": "node scripts/useradd.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "cf:dev": "wrangler dev",
+    "cf:deploy": "wrangler deploy",
+    "cf:db:init": "wrangler d1 execute proofreading --remote --file=worker/schema.sql",
+    "cf:db:init:local": "wrangler d1 execute proofreading --local --file=worker/schema.sql",
+    "cf:secret": "wrangler secret put GITHUB_TOKEN"
+  },
+  "devDependencies": {
+    "wrangler": "^4.131.1"
   }
 }

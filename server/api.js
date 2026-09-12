@@ -5,7 +5,7 @@ import * as auth from './auth.js';
 import * as git from './git.js';
 import * as novelLib from './novel.js';
 import * as ws from './workspace.js';
-import { diffTexts, locateQuote } from './diff.js';
+import { diffTexts, locateQuote } from '../shared/diff.js';
 import { annotations, readerState, newId, userSlot } from './store.js';
 
 export class HttpError extends Error {
@@ -28,11 +28,6 @@ function requireNovel(id) {
 function requireUser(ctx) {
   if (!ctx.user) throw new HttpError(401, 'ログインしてください');
   return ctx.user;
-}
-
-/** 目次の中から節を引く。 */
-function sectionEntry(toc, sectionId) {
-  return toc.chapters.flatMap((c) => c.sections).find((s) => s.id === sectionId) || null;
 }
 
 async function annotationsFor(novel, filter = {}) {
@@ -196,7 +191,7 @@ export const routes = [
 
     return git.withRepoLock(novel.id, async () => {
       const s = await ws.prepare(novel, { force: true });
-      const entry = sectionEntry(s.toc, sectionId);
+      const entry = novelLib.findSection(s.toc, sectionId);
       if (!entry) throw new HttpError(404, `本文が見つかりません: ${sectionId}`);
 
       const rel = novelLib.sectionPath(novel, sectionId);

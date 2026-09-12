@@ -15,9 +15,16 @@
 - 作者が済へ移した指摘は「対応済み」として色が変わる
 - スマホの画面幅に合わせてあり、ホーム画面に入れて使える（PWA）。Android でもそのまま動く
 
-素の Node.js だけで動く。npm の依存は無い。
+置き方は二通り。**どちらも同じ画面・同じ使い勝手**で、中身の入れ替えだけが違う。
 
-## 動かす
+| | 中身 | 要るもの |
+|---|---|---|
+| **自前で動かす** | Node.js ＋ `git` コマンド ＋ JSON ファイル | 常時動く機械 |
+| **Cloudflare Workers** | GitHub API ＋ D1 | Cloudflare アカウントと GitHub トークン |
+
+実行時の npm 依存は無い（`wrangler` は Cloudflare へ出すときだけ使う道具）。
+
+## 自前で動かす
 
 ```bash
 npm start                      # 既定では http://localhost:8787
@@ -116,22 +123,49 @@ review/inbox.md            指摘の書き込み先（## 未対応 に足す）
 最後の行は目印。作者がこの項目を「## 済」へ移すと、アプリ側の表示も「対応済み」に変わる。
 **目印さえ残しておけば、本文の書き方は自由に直してよい。**
 
+## Cloudflare Workers に載せる
+
+機械を持たずに動かす場合。手順は [`docs/cloudflare.md`](docs/cloudflare.md) に全部書いた。
+
+```bash
+npm install
+npx wrangler login
+npx wrangler d1 create proofreading   # 出た database_id を wrangler.toml へ
+npm run cf:db:init                    # 表を作る
+npm run cf:secret                     # GitHub のトークンを登録（Contents: Read and write のみ）
+npm run cf:deploy
+```
+
+`wrangler.toml` の `NOVELS` に作品を書く。**無料枠で使うなら `PBKDF2_ITERATIONS` を
+10000 前後に下げること**（無料枠は 1 リクエスト CPU 10ms までで、既定の 10 万回では
+ログインだけが失敗する）。理由と代案は `docs/cloudflare.md`。
+
+手元の workerd で試すなら `npm run cf:db:init:local && npm run cf:dev`。
+
 ## 仕組み
 
 ```
-ブラウザ ── HTTP ── server/  ── git clone / pull / commit / push ── 原稿リポジトリ
-                      └ data/  校正者・しおり・読みかけ・指摘の台帳（JSON）
+                    ┌ 自前 …… server/  ── git clone / commit / push ── 原稿リポジトリ
+ブラウザ ── public/ ┤                     └ data/*.json  校正者・しおり・指摘の控え
+                    └ CF  …… worker/  ── GitHub API ───────────────── 原稿リポジトリ
+                                          └ D1          校正者・しおり・指摘の控え
 ```
 
 | 置き場 | 役目 |
 |---|---|
-| `server/index.js` | HTTP の入口。静的ファイルと `/api/*` の振り分け |
-| `server/api.js` | API の中身 |
-| `server/auth.js` | ログイン（scrypt でハッシュ、Cookie でセッション） |
+| `shared/novel.js` | 原稿の解析。目次組み・`inbox.md` への差し込み・目印の読み取り |
+| `shared/diff.js` | 前後の比較（行の LCS ＋ 変わった行の文字単位） |
+| `shared/password.js` | パスワードのハッシュ（Web Crypto の PBKDF2。両方で共通） |
+| `server/index.js` | 自前版の入口。静的ファイルと `/api/*` の振り分け |
+| `server/api.js` | 自前版の API |
 | `server/git.js` | git の呼び出し。作品ごとに直列化して壊さない |
-| `server/novel.js` | 原稿の読み取り。目次組み・`inbox.md` への差し込み |
-| `server/diff.js` | 前後の比較（行の LCS ＋ 変わった行の文字単位） |
+| `server/novel.js` | 作業コピーからの読み書き |
 | `server/workspace.js` | 作業コピーの用意と、目次の作り直し |
+| `worker/index.js` | Workers の入口。静的アセットと `/api/*` |
+| `worker/api.js` | Workers 版の API（返す形は自前版と同じ） |
+| `worker/github.js` | GitHub API の呼び出し（clone・commit・push の代わり） |
+| `worker/repo.js` | 目次づくりと控え（変わった節だけ読み直す） |
+| `worker/db.js`／`worker/schema.sql` | D1 の出し入れと表の定義 |
 | `public/js/tategaki.js` | 縦書きの表示。選択位置を本文の文字数で表す |
 | `public/js/app.js` | 画面の進行 |
 | `public/js/compare.js` | 前後の比較の描画 |
@@ -145,6 +179,10 @@ review/inbox.md            指摘の書き込み先（## 未対応 に足す）
 npm test
 ```
 
-`test/integration.test.js` は、その場で作った git リポジトリを相手に
-**ログイン → 目次 → 本文 → 指摘の書き込みと push → 作者の修正 → 前後の比較 → 対応済みの判定**
-までを通す。本物の原稿には触らない。
+- `test/integration.test.js` … 自前版。その場で作った git リポジトリを相手に
+  **ログイン → 目次 → 本文 → 指摘の書き込みと push → 作者の修正 → 前後の比較 → 対応済みの判定**
+  までを通す
+- `test/worker.test.js` … Workers 版。同じ筋書きを、D1 の代役（`node:sqlite`）と
+  **本物の git リポジトリを裏に持つ偽 GitHub** を相手に通す
+
+どちらも本物の原稿には触らない。

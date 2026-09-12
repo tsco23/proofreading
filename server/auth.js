@@ -1,26 +1,11 @@
-import { randomBytes, scrypt as scryptCb, timingSafeEqual } from 'node:crypto';
-import { promisify } from 'node:util';
+import { randomBytes } from 'node:crypto';
 import { users, sessions, newId } from './store.js';
 import { SESSION_TTL_MS, SECURE_COOKIE } from './config.js';
+import { hashPassword, verifyPassword, DUMMY_HASH } from '../shared/password.js';
 
-const scrypt = promisify(scryptCb);
-const KEYLEN = 64;
 const COOKIE = 'pr_session';
 
-export async function hashPassword(password) {
-  const salt = randomBytes(16).toString('hex');
-  const derived = await scrypt(password, salt, KEYLEN);
-  return `scrypt$${salt}$${derived.toString('hex')}`;
-}
-
-export async function verifyPassword(password, stored) {
-  const [scheme, salt, hex] = String(stored || '').split('$');
-  if (scheme !== 'scrypt' || !salt || !hex) return false;
-  const derived = await scrypt(password, salt, KEYLEN);
-  const expected = Buffer.from(hex, 'hex');
-  if (expected.length !== derived.length) return false;
-  return timingSafeEqual(derived, expected);
-}
+export { hashPassword, verifyPassword };
 
 export async function createUser({ loginId, name, password, role = 'proofreader', email = '' }) {
   const id = String(loginId || '').trim().toLowerCase();
@@ -69,7 +54,7 @@ export async function authenticate(loginId, password) {
   const user = await findByLoginId(loginId);
   if (!user) {
     // ID が無い場合も同じだけ時間を使い、存在の有無を漏らさない
-    await verifyPassword(password, `scrypt$${'0'.repeat(32)}$${'0'.repeat(128)}`);
+    await verifyPassword(password, DUMMY_HASH);
     return null;
   }
   const ok = await verifyPassword(password, user.passwordHash);
