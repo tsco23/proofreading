@@ -743,15 +743,15 @@ function bindReader() {
     savePosition();
   }, { passive: true });
 
+  // 色のついた箇所を叩いたら、その指摘の前後を並べて見せる。
+  // 一覧を開いて目当ての指摘を探し直す手間が要らない
   view.el.addEventListener('click', (ev) => {
     const mark = ev.target.closest?.('mark[data-mark-id]');
     if (!mark) return;
-    const id = mark.dataset.markId;
-    const note = state.annotations.find((a) => a.id === id);
-    if (note) {
-      state.noteFilter = 'section';
-      openDrawer('notes');
-    }
+    // 文を選んでいる途中の指離しでは開かない
+    if (!window.getSelection()?.isCollapsed) return;
+    const note = state.annotations.find((a) => a.id === mark.dataset.markId);
+    if (note) openCompare(state.novel.id, note.id);
   });
 
   $('#btn-page-next').addEventListener('click', () => view.page('next'));

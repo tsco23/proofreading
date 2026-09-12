@@ -143,6 +143,7 @@ details[open] summary { margin-bottom: 12px; }
   display: inline-block; margin-inline-end: 4px;
 }
 .tategaki mark { background: var(--mark-open); color: inherit; border-radius: 2px; }
+.tategaki mark[data-mark-id] { cursor: pointer; }
 .tategaki mark.mark--done { background: var(--mark-done); }
 .tategaki mark.mark--bookmark { background: var(--mark-bm); }
 .tategaki mark.mark--flash { outline: 2px solid var(--accent); }
