@@ -25,6 +25,7 @@ export function selectionSidePlacement({
 
   let side;
   let x;
+  // eslint-disable-next-line prefer-const -- 下で画面内へ寄せ直す
   if (wantLeft && fitsLeft) [side, x] = ['left', leftSlot];
   else if (!wantLeft && fitsRight) [side, x] = ['right', rightSlot];
   else if (fitsLeft) [side, x] = ['left', leftSlot];
@@ -34,6 +35,9 @@ export function selectionSidePlacement({
     side = wantLeft ? 'left' : 'right';
     x = side === 'left' ? edge : viewport.width - menu.width - edge;
   }
+
+  // 画面の外を選んでいる（送り途中など）ときでも、釦は画面の中に出す
+  x = Math.min(Math.max(x, edge), Math.max(edge, viewport.width - menu.width - edge));
 
   // 縦は選択の真ん中に合わせ、上下の帯の内側へ収める
   const centre = (selection.top + selection.bottom) / 2 - menu.height / 2;

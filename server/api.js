@@ -5,7 +5,7 @@ import * as auth from './auth.js';
 import * as git from './git.js';
 import * as novelLib from './novel.js';
 import * as ws from './workspace.js';
-import { diffTexts, locateQuote } from '../shared/diff.js';
+import { diffTexts, locateQuote, relocateAll } from '../shared/diff.js';
 import { annotations, readerState, newId, userSlot } from './store.js';
 
 export class HttpError extends Error {
@@ -30,16 +30,32 @@ function requireUser(ctx) {
   return ctx.user;
 }
 
-async function annotationsFor(novel, filter = {}) {
+/**
+ * 指摘の一覧。節を指してあるときは、色を敷く位置をいまの本文に合わせ直す。
+ * 指摘は「何文字目か」で持っているので、作者が前のほうを直せばその数はずれるため。
+ */
+async function annotationsFor(novel, filter = {}, sectionText = null) {
   const data = await annotations.read();
   let list = data.annotations.filter((a) => a.novelId === novel.id);
   if (filter.sectionId) list = list.filter((a) => a.sectionId === filter.sectionId);
   if (filter.userId) list = list.filter((a) => a.userId === filter.userId);
   const inbox = await novelLib.readInbox(novel);
   const markers = novelLib.parseInboxMarkers(inbox);
-  return list
-    .map((a) => ({ ...a, status: markers.get(a.id) || a.status || 'open' }))
-    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+
+  let out = list.map((a) => ({ ...a, status: markers.get(a.id) || a.status || 'open' }));
+  if (filter.sectionId) {
+    const text = sectionText ?? await readSectionText(novel, filter.sectionId);
+    if (text != null) out = relocateAll(text, out);
+  }
+  return out.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+}
+
+async function readSectionText(novel, sectionId) {
+  try {
+    return await fs.readFile(path.join(novel.workdir, novelLib.sectionPath(novel, sectionId)), 'utf8');
+  } catch {
+    return null;
+  }
 }
 
 export const routes = [
@@ -161,7 +177,7 @@ export const routes = [
     const s = await ws.ensureReady(novel);
     const section = await novelLib.getSection(novel, sectionId, s.toc);
     if (!section) throw new HttpError(404, `本文が見つかりません: ${sectionId}`);
-    const list = await annotationsFor(novel, { sectionId });
+    const list = await annotationsFor(novel, { sectionId }, section.text);
     const state = await readerState.read();
     const slot = state.byUser?.[ctx.user.id]?.[novel.id];
     return {

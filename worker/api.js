@@ -3,7 +3,7 @@
  * 返す形は Node 版と同じにしてあるので、public/ の画面はそのまま動く。
  */
 import { insertIntoInbox, parseInboxMarkers, formatInboxEntry, isSectionId, sectionPath } from '../shared/novel.js';
-import { diffTexts, locateQuote } from '../shared/diff.js';
+import { diffTexts, locateQuote, relocateAll } from '../shared/diff.js';
 import { hashPassword, verifyPassword, DUMMY_HASH } from '../shared/password.js';
 import * as db from './db.js';
 import * as repo from './repo.js';
@@ -46,14 +46,23 @@ function sessionTtlMs(env) {
   return Number(env.SESSION_DAYS || 30) * 86_400_000;
 }
 
-/** 指摘の状態は inbox.md が正。未対応から消えていれば「対応済み」とみなす。 */
-async function annotationsWithStatus(ctx, novel, filter) {
+/**
+ * 指摘の一覧。状態は inbox.md が正（未対応から消えていれば「対応済み」）。
+ * 節を指してあるときは、色を敷く位置をいまの本文に合わせ直す。
+ * 指摘は「何文字目か」で持っているので、作者が前のほうを直せばその数はずれるため。
+ */
+async function annotationsWithStatus(ctx, novel, filter, sectionText = null) {
   const [rows, inbox] = await Promise.all([
     db.listAnnotations(ctx.db, { novelId: novel.id, ...filter }),
     repo.readInbox(ctx.gh, novel).catch(() => null),
   ]);
   const markers = parseInboxMarkers(inbox);
-  return rows.map((a) => ({ ...a, status: markers.get(a.id) || a.status || 'open' }));
+  const out = rows.map((a) => ({ ...a, status: markers.get(a.id) || a.status || 'open' }));
+  if (!filter.sectionId) return out;
+
+  const text = sectionText
+    ?? await ctx.gh.fileText(novel, sectionPath(novel, filter.sectionId), novel.branch).catch(() => null);
+  return text == null ? out : relocateAll(text, out);
 }
 
 export const routes = [
@@ -206,7 +215,7 @@ export const routes = [
     const section = await repo.section(ctx.gh, novel, sectionId, built.toc, built.head);
     if (!section) throw new HttpError(404, `本文が見つかりません: ${sectionId}`);
     const [annotations, bookmarks] = await Promise.all([
-      annotationsWithStatus(ctx, novel, { sectionId }),
+      annotationsWithStatus(ctx, novel, { sectionId }, section.text),
       db.listBookmarks(ctx.db, user.id, novel.id),
     ]);
     return {

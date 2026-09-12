@@ -523,14 +523,26 @@ function renderNoteList(list) {
       }),
     ]),
     a.quote ? el('div', { class: 'note__quote', text: a.quote }) : null,
+    a.located === 'lost'
+      ? el('div', { class: 'muted small', text: '※ 引用した文は、いまの本文には見あたりません' })
+      : null,
+    a.located === 'near'
+      ? el('div', { class: 'muted small', text: '※ 引用した文は直されています。色はおおよその位置です' })
+      : null,
     el('div', { class: 'note__body', text: a.body }),
     el('div', { class: 'note__actions' }, [
       el('button', {
         class: 'btn', type: 'button', text: '本文へ',
         onclick: async () => {
           closeDrawer();
-          if (state.section.id !== a.sectionId) await loadSection(a.sectionId, { offset: a.start || 0, flash: true });
-          else view.scrollToOffset(a.start || 0, { smooth: true, flash: true });
+          if (state.section.id !== a.sectionId) await loadSection(a.sectionId);
+          // 位置はいまの本文に合わせ直したものを使う。一覧の数は古いことがある
+          const fresh = state.annotations.find((x) => x.id === a.id) || a;
+          if (fresh.start == null) {
+            toast('引用した文が、いまの本文に見あたりません', { error: true });
+            return;
+          }
+          view.scrollToOffset(fresh.start, { smooth: true, flash: true });
         },
       }),
       el('button', {

@@ -21,7 +21,7 @@
 **Node 22 以上が要る**（`wrangler` が要求する。`node:sqlite` を使う試験も同じ）。
 
 ```bash
-npm test            # 52 件。git が要る。本物の原稿には触らない
+npm test            # 57 件。git が要る。本物の原稿には触らない
 npm start           # 自前サーバ版 http://localhost:8787
 npm run cf:dev      # Workers 版を手元の workerd で http://localhost:8788
 ```
@@ -60,7 +60,9 @@ CLOUDFLARE_API_TOKEN=... npx wrangler d1 execute proofreading --remote \
 - **実行時の npm 依存を増やさない。** Node の標準ライブラリと git だけで動かす
   （`wrangler` はデプロイの道具であって、動作には要らない）
 - コメントと画面の文言は日本語。説明は地の文で短く。**何をしたかではなく、なぜそうしたかを書く**
-- 指摘の位置は「**本文の何文字目か**」で持つ。段落や行番号ではない
+- 指摘の位置は「**本文の何文字目か**」で持つ。段落や行番号ではない。
+  ただし作者が前のほうを直せばその数はずれるので、**一覧を返すときに引用から引き直す**
+  （`relocateAll()`／`shared/diff.js`）。引用が消えていれば `located: 'lost'` を返し、色は敷かない
 - `review/inbox.md` の `<!-- pr:id=… -->` が指摘の身元。
   **指摘が未対応か済かは inbox.md が正**で、D1／JSON にあるのは控え。
   作者が「## 済」へ動かせば、アプリの表示も変わる

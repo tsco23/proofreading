@@ -193,6 +193,52 @@ test('Workers 版：ログインから指摘の書き戻し、前後の比較ま
     assert.equal(toc.payload.toc.planned.length, 0, '書かれた節は「これから」から外れる');
   });
 
+  await t.test('作者が前のほうを書き足しても、指摘の色はずれない', async () => {
+    const before = await fs.readFile(path.join(workdir, 'manuscript/ch1/ch1-02.md'), 'utf8');
+    const mark = await call('POST', '/api/novels/novel1/annotations', {
+      sectionId: 'ch1-02',
+      quote: '戸倉が地図を広げた',
+      start: before.indexOf('戸倉が地図を広げた'),
+      end: before.indexOf('戸倉が地図を広げた') + 9,
+      body: '地図を広げる所作をもう少し見せたい',
+    });
+    assert.equal(mark.status, 200, JSON.stringify(mark.payload));
+
+    // 作者が引用より前に書き足す（＝以降の文字位置がすべてずれる）
+    await fs.writeFile(
+      path.join(workdir, 'manuscript/ch1/ch1-02.md'),
+      '　部室の匂いは灯油だった。窓は曇っていた。\n\n　戸倉が地図を広げた。\n',
+    );
+    await run('git', ['commit', '-am', 'ch1-02 に書き足す'], { cwd: workdir });
+    await call('POST', '/api/novels/novel1/sync', {});
+
+    const res = await call('GET', '/api/novels/novel1/sections/ch1-02');
+    const ann = res.payload.annotations.find((a) => a.id === mark.payload.annotation.id);
+    const text = res.payload.section.text;
+    assert.equal(text.slice(ann.start, ann.end), '戸倉が地図を広げた', '色を敷く場所が引用と一致する');
+    assert.equal(ann.located, 'exact');
+    assert.notEqual(ann.start, mark.payload.annotation.start, '位置は動いている');
+  });
+
+  await t.test('引用が消えたら、色は敷かずにその旨を返す', async () => {
+    const gone = await call('POST', '/api/novels/novel1/annotations', {
+      sectionId: 'ch1-02',
+      quote: '窓は曇っていた',
+      body: 'この一文は要らないのでは',
+    });
+    await fs.writeFile(
+      path.join(workdir, 'manuscript/ch1/ch1-02.md'),
+      '　部室の匂いは灯油だった。\n\n　戸倉が地図を広げた。\n',
+    );
+    await run('git', ['commit', '-am', 'ch1-02 から一文を削る'], { cwd: workdir });
+    await call('POST', '/api/novels/novel1/sync', {});
+
+    const res = await call('GET', '/api/novels/novel1/sections/ch1-02');
+    const ann = res.payload.annotations.find((a) => a.id === gone.payload.annotation.id);
+    assert.equal(ann.located, 'lost');
+    assert.equal(ann.start, null);
+  });
+
   await t.test('作者が済へ移すと、対応済みとして見える', async () => {
     const inboxPath = path.join(workdir, 'review/inbox.md');
     const lines = (await fs.readFile(inboxPath, 'utf8')).split('\n');

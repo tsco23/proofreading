@@ -153,13 +153,19 @@ function longestCommonRun(text, quote) {
  * 指摘が付いた箇所が、いま本文のどこにあるか。
  * そのまま残っていれば exact、直されていれば手掛かりの位置を exact:false で返す。
  * 跡形もなければ null。
+ *
+ * 同じ言い回しが節の中に何度も出ることがあるので、**元の位置にいちばん近いもの**を選ぶ。
  */
 export function locateQuote(text, quote, hintStart = 0) {
   if (!quote) return null;
-  const near = text.indexOf(quote, Math.max(0, hintStart - 200));
-  if (near >= 0) return { start: near, end: near + quote.length, exact: true };
-  const anywhere = text.indexOf(quote);
-  if (anywhere >= 0) return { start: anywhere, end: anywhere + quote.length, exact: true };
+
+  let best = null;
+  for (let at = text.indexOf(quote); at >= 0; at = text.indexOf(quote, at + 1)) {
+    const distance = Math.abs(at - hintStart);
+    if (!best || distance < best.distance) best = { start: at, distance };
+    if (at > hintStart) break; // これ以上は遠ざかるだけ
+  }
+  if (best) return { start: best.start, end: best.start + quote.length, exact: true };
 
   const threshold = Math.max(3, Math.ceil(quote.length * 0.2));
   const run = longestCommonRun(text, quote);
@@ -167,4 +173,25 @@ export function locateQuote(text, quote, hintStart = 0) {
     return { start: run.end - run.length, end: run.end, exact: false };
   }
   return null;
+}
+
+/**
+ * 指摘の位置を、いまの本文に合わせ直す。
+ *
+ * 指摘は「本文の何文字目か」で持っているが、作者が前のほうを直せばその数はずれる。
+ * 引用した文字列を今の本文から探し直して、色を敷く位置を決める。
+ *   exact … 引用がそのまま残っている（動いていても構わない）
+ *   near  … 直されていて、手掛かりの位置しか分からない
+ *   lost  … 跡形もない
+ *   none  … 引用のない指摘（節そのものへの指摘）
+ */
+export function relocate(text, annotation) {
+  if (!annotation.quote) return { ...annotation, located: 'none' };
+  const hit = locateQuote(text, annotation.quote, annotation.start ?? 0);
+  if (!hit) return { ...annotation, start: null, end: null, located: 'lost' };
+  return { ...annotation, start: hit.start, end: hit.end, located: hit.exact ? 'exact' : 'near' };
+}
+
+export function relocateAll(text, annotations) {
+  return annotations.map((a) => relocate(text, a));
 }

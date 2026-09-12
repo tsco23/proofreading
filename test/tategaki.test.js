@@ -62,6 +62,18 @@ test('片側に入らなければ、入るほうへ回す', () => {
   assert.ok(全面.x >= 0 && 全面.x + 釦.width <= 400);
 });
 
+test('画面の外を選んでいても、釦は画面の中に出す', () => {
+  const 画面 = { width: 1200, height: 800 };
+  const 釦 = { width: 110, height: 170 };
+
+  // まだ送っていない先（画面の左の外）を選んだとき
+  const 外 = selectionSidePlacement({
+    selection: { left: -900, right: -800, top: 300, bottom: 400 },
+    viewport: 画面, menu: 釦,
+  });
+  assert.ok(外.x >= 0 && 外.x + 釦.width <= 画面.width);
+});
+
 test('上下の帯に隠れない高さへ収める', () => {
   const 画面 = { width: 1200, height: 800 };
   const 釦 = { width: 110, height: 170 };
