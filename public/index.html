@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f3ec">
+<title>校正室</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body data-theme="paper">
+
+<!-- ログイン -->
+<section id="screen-login" class="screen screen--center" hidden>
+  <div class="card">
+    <h1 class="brand">校正室</h1>
+    <p class="brand-sub">執筆中の原稿を縦書きで読み、指摘を原稿のリポジトリへ返す</p>
+
+    <form id="form-login" class="form">
+      <label>ログイン ID<input name="loginId" autocomplete="username" required></label>
+      <label>パスワード<input name="password" type="password" autocomplete="current-password" required></label>
+      <button class="btn btn--primary" type="submit">入る</button>
+    </form>
+
+    <details id="signup-block" hidden>
+      <summary>はじめての人（校正者を登録する）</summary>
+      <form id="form-signup" class="form">
+        <label id="invite-field">招待コード<input name="inviteCode" autocomplete="off"></label>
+        <label>ログイン ID<input name="loginId" autocomplete="username" required></label>
+        <label>表示名（指摘に載る名前）<input name="name" required></label>
+        <label>パスワード（8 文字以上）<input name="password" type="password" autocomplete="new-password" required></label>
+        <button class="btn" type="submit">登録して入る</button>
+      </form>
+    </details>
+
+    <p id="login-error" class="error" role="alert" hidden></p>
+  </div>
+</section>
+
+<!-- 作品一覧 -->
+<section id="screen-library" class="screen" hidden>
+  <header class="bar">
+    <h1 class="bar__title">校正室</h1>
+    <div class="bar__right">
+      <span id="library-user" class="muted"></span>
+      <button id="btn-logout" class="btn btn--ghost" type="button">出る</button>
+    </div>
+  </header>
+  <div class="library" id="library-list"></div>
+</section>
+
+<!-- 読む -->
+<section id="screen-reader" class="screen screen--reader" hidden>
+  <header class="bar bar--reader">
+    <button id="btn-back" class="btn btn--icon" type="button" title="作品一覧へ">←</button>
+    <div class="bar__center">
+      <span id="reader-novel" class="muted"></span>
+      <strong id="reader-section"></strong>
+    </div>
+    <div class="bar__right">
+      <button id="btn-toc" class="btn btn--ghost" type="button">目次</button>
+      <button id="btn-marks" class="btn btn--ghost" type="button">しおり</button>
+      <button id="btn-notes" class="btn btn--ghost" type="button">指摘</button>
+      <button id="btn-settings" class="btn btn--icon" type="button" title="表示設定">Aa</button>
+    </div>
+  </header>
+
+  <main class="reader">
+    <div id="reader-body" class="tategaki" tabindex="0"></div>
+    <button class="pager pager--next" id="btn-page-next" type="button" title="次の頁（←）">‹</button>
+    <button class="pager pager--prev" id="btn-page-prev" type="button" title="前の頁（→）">›</button>
+  </main>
+
+  <footer class="bar bar--foot">
+    <button id="btn-prev-section" class="btn btn--ghost" type="button">前の節</button>
+    <div class="progress"><div id="progress-bar" class="progress__bar"></div></div>
+    <span id="progress-label" class="muted">0%</span>
+    <button id="btn-next-section" class="btn btn--ghost" type="button">次の節</button>
+  </footer>
+
+  <!-- 選択したときに出る操作 -->
+  <div id="selection-menu" class="selection-menu" hidden>
+    <button data-act="annotate" class="btn btn--primary" type="button">指摘する</button>
+    <button data-act="bookmark" class="btn" type="button">しおり</button>
+    <button data-act="copy" class="btn btn--ghost" type="button">写す</button>
+  </div>
+
+  <!-- 指摘を書く -->
+  <div id="compose" class="sheet" hidden>
+    <div class="sheet__head">
+      <strong>指摘を書く</strong>
+      <button class="btn btn--icon" data-close="compose" type="button">×</button>
+    </div>
+    <blockquote id="compose-quote" class="quote"></blockquote>
+    <textarea id="compose-body" rows="5" placeholder="気になったことを書く。直し方の案まで書けるとなおよい。"></textarea>
+    <div class="sheet__foot">
+      <span id="compose-target" class="muted"></span>
+      <button id="compose-submit" class="btn btn--primary" type="button">inbox.md へ送る</button>
+    </div>
+    <p class="muted small">送ると原稿リポジトリの <code id="compose-path">review/inbox.md</code> に書き足してコミットします。</p>
+  </div>
+</section>
+
+<!-- 引き出し（目次・しおり・指摘） -->
+<aside id="drawer" class="drawer" hidden>
+  <header class="drawer__head">
+    <div class="drawer__tabs">
+      <button class="btn btn--ghost" data-panel="toc" type="button">目次</button>
+      <button class="btn btn--ghost" data-panel="marks" type="button">しおり</button>
+      <button class="btn btn--ghost" data-panel="notes" type="button">指摘</button>
+    </div>
+    <button class="btn btn--icon" data-close="drawer" type="button">×</button>
+  </header>
+  <div id="drawer-body" class="drawer__body"></div>
+</aside>
+
+<!-- 前後の比較 -->
+<div id="compare" class="modal" hidden>
+  <div class="modal__panel">
+    <header class="modal__head">
+      <strong>指摘の前後を比べる</strong>
+      <div class="modal__tools">
+        <label class="switch"><input type="checkbox" id="compare-all"> 全文</label>
+        <label class="switch"><input type="checkbox" id="compare-yoko"> 横書き</label>
+        <button class="btn btn--icon" data-close="compare" type="button">×</button>
+      </div>
+    </header>
+    <div id="compare-summary" class="compare__summary"></div>
+    <div id="compare-body" class="compare__body"></div>
+  </div>
+</div>
+
+<!-- 表示設定 -->
+<div id="settings" class="modal" hidden>
+  <div class="modal__panel modal__panel--small">
+    <header class="modal__head">
+      <strong>表示設定</strong>
+      <button class="btn btn--icon" data-close="settings" type="button">×</button>
+    </header>
+    <div class="form">
+      <label>文字の大きさ <output id="out-fs"></output>
+        <input type="range" id="set-fs" min="14" max="34" step="1">
+      </label>
+      <label>行の間隔 <output id="out-lh"></output>
+        <input type="range" id="set-lh" min="15" max="26" step="1">
+      </label>
+      <label>紙の色
+        <select id="set-theme">
+          <option value="paper">生成り</option>
+          <option value="white">白</option>
+          <option value="night">夜</option>
+        </select>
+      </label>
+      <label>書体
+        <select id="set-font">
+          <option value="mincho">明朝</option>
+          <option value="gothic">ゴシック</option>
+        </select>
+      </label>
+      <label class="switch"><input type="checkbox" id="set-ruby"> 段落の番号を出す</label>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+<div id="busy" class="busy" hidden><span></span></div>
+
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>

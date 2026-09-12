@@ -1,0 +1,16 @@
+{
+  "novels": [
+    {
+      "id": "novel1",
+      "title": "烏川高校山岳部（仮題）",
+      "author": "",
+      "repo": "https://github.com/tsco23/novel1",
+      "branch": "claude/novel-writing-constraints-wuury5",
+      "manuscriptDir": "manuscript",
+      "inboxPath": "review/inbox.md",
+      "structurePath": "outline/structure.md",
+      "sectionsPath": "outline/sections.md",
+      "push": true
+    }
+  ]
+}

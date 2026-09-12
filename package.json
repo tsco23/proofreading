@@ -1,0 +1,16 @@
+{
+  "name": "proofreading",
+  "version": "1.0.0",
+  "private": true,
+  "description": "執筆中の小説リポジトリを縦書きで読み、指摘を review/inbox.md へ書き戻す校正用ウェブアプリ",
+  "type": "module",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "user:add": "node scripts/useradd.js",
+    "test": "node --test test/*.test.js"
+  }
+}
