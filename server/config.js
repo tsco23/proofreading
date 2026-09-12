@@ -11,6 +11,13 @@ export const DATA_DIR = process.env.PROOFREADING_DATA_DIR
 export const PUBLIC_DIR = path.join(ROOT, 'public');
 export const WORKSPACE_DIR = path.join(DATA_DIR, 'workspaces');
 
+/**
+ * この版の目印。画面が古いままかを見分けるのに使う。
+ * 自前で動かすときは起動ごとに変わる（入れ替えれば変わる）。
+ */
+export const APP_VERSION = process.env.PROOFREADING_VERSION
+  || `local-${Math.floor(Date.now() / 1000).toString(36)}`;
+
 export const PORT = Number(process.env.PORT || 8787);
 export const HOST = process.env.HOST || '0.0.0.0';
 

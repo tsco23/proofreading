@@ -62,6 +62,8 @@ export const routes = [
     const invite = ctx.env.INVITE_CODE || '';
     return {
       user: ctx.user || null,
+      // 画面側がこれを見て、古いままなら読み込み直しを促す
+      version: ctx.env.CF_VERSION_METADATA?.id?.slice(0, 8) || '',
       signup: {
         enabled: userCount === 0 || Boolean(invite),
         // 招待コードを設けたら、最初の一人にも要る

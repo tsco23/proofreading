@@ -162,8 +162,15 @@
         </select>
       </label>
       <label class="switch"><input type="checkbox" id="set-ruby"> 段落の番号を出す</label>
+      <p class="muted small">版 <code id="app-version">…</code></p>
     </div>
   </div>
+</div>
+
+<!-- 新しい版が出たときの知らせ -->
+<div id="update-note" class="update-note" role="status" hidden>
+  <span>新しい版が出ています</span>
+  <button id="btn-reload" class="btn btn--primary" type="button">読み込み直す</button>
 </div>
 
 <div id="toast" class="toast" hidden></div>

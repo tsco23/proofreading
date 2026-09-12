@@ -1,6 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { getNovel, loadNovels, INVITE_CODE, SESSION_TTL_MS } from './config.js';
+import { getNovel, loadNovels, INVITE_CODE, SESSION_TTL_MS, APP_VERSION } from './config.js';
 import * as auth from './auth.js';
 import * as git from './git.js';
 import * as novelLib from './novel.js';
@@ -48,6 +48,8 @@ export const routes = [
     const userCount = await auth.countUsers();
     return {
       user: auth.publicUser(ctx.user),
+      // 画面側がこれを見て、古いままなら読み込み直しを促す
+      version: APP_VERSION,
       signup: {
         enabled: userCount === 0 || Boolean(INVITE_CODE),
         // 招待コードを設けたら、最初の一人にも要る

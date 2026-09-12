@@ -1,5 +1,5 @@
 /* 画面の枠だけを持っておく。本文と指摘はいつも取りに行く。 */
-const CACHE = 'proofreading-shell-v1';
+const CACHE = 'proofreading-shell-v2';
 const SHELL = [
   '/',
   '/index.html',

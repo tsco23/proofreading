@@ -88,6 +88,7 @@ test('Workers 版：ログインから指摘の書き戻し、前後の比較ま
   await t.test('最初の校正者を登録できる', async () => {
     const me = await call('GET', '/api/me');
     assert.equal(me.payload.signup.bootstrap, true);
+    assert.equal(typeof me.payload.version, 'string', '動いている版を返す');
     const res = await call('POST', '/api/auth/signup', { loginId: 'kato', name: '加藤', password: 'password123' });
     assert.equal(res.status, 200, JSON.stringify(res.payload));
     assert.equal(res.payload.user.role, 'admin');

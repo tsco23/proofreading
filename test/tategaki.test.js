@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Tategaki, selectionMenuMode } from '../public/js/tategaki.js';
+import { Tategaki, selectionMenuMode, selectionBarSlot } from '../public/js/tategaki.js';
 
 test('段落は本文の文字位置を持つ', () => {
   const text = '　一行目。\n\n「二行目」\n「三行目」\n';
@@ -25,4 +25,33 @@ test('指で選んだときは操作メニューを下端へ逃がす', () => {
   assert.equal(selectionMenuMode('mouse', true), 'float', 'マウスならネイティブのバーは出ない');
   assert.equal(selectionMenuMode('', true), 'bar', '何で選んだか分からないときは機械の質で決める');
   assert.equal(selectionMenuMode('', false), 'float');
+});
+
+test('帯はネイティブの操作バーと下の検索バーの両方を避ける', () => {
+  const 画面 = { viewportHeight: 900, headerBottom: 52, barHeight: 56 };
+  const 上端 = 58; // headerBottom + 6
+  const 下端 = 900 - 104 - 56; // 検索の帯のぶんを空けた高さ
+
+  // 選択が下half にあるなら上へ
+  const 下を選択 = selectionBarSlot({ ...画面, selectionTop: 600, selectionBottom: 700 });
+  assert.equal(下を選択.at, 'top');
+  assert.equal(下を選択.y, 上端);
+
+  // 選択が上にあるなら下へ（ただし検索の帯の上）
+  const 上を選択 = selectionBarSlot({ ...画面, selectionTop: 100, selectionBottom: 200 });
+  assert.equal(上を選択.at, 'bottom');
+  assert.equal(上を選択.y, 下端);
+  assert.ok(上を選択.y + 画面.barHeight <= 900 - 104, "検索の帯にかからない");
+
+  // 選択が画面いっぱいに伸びていても、遠いほうへ逃げる
+  const 全面 = selectionBarSlot({ ...画面, selectionTop: 60, selectionBottom: 860 });
+  assert.ok(['top', 'bottom'].includes(全面.at));
+
+  // 選択の上下 72px には置かない
+  for (const [top, bottom] of [[60, 140], [300, 420], [700, 800], [820, 880]]) {
+    const 置き場 = selectionBarSlot({ ...画面, selectionTop: top, selectionBottom: bottom });
+    const 離れている = 置き場.y + 画面.barHeight < top - 72 || 置き場.y > bottom + 72;
+    const 逃げ場がない = top - 72 < 58 + 画面.barHeight && bottom + 72 > 下端;
+    assert.ok(離れている || 逃げ場がない, `${top}〜${bottom} で ${置き場.y}`);
+  }
 });

@@ -74,6 +74,13 @@ CLOUDFLARE_API_TOKEN=... npx wrangler d1 execute proofreading --remote \
 - **Workers には `fs` も `child_process` も無い。** `shared/` に fs 依存を持ち込まないこと
 - **目次は本文を全部読まないと作れない。** blob の sha を鍵に D1 へ控えてあり、
   変わった節だけ読み直す。無料枠の「1 リクエストあたり外部呼び出し 50 回」に収めるため
+- **Chrome は選択すると二つの物を出す。** 選択範囲のそばに操作バー（コピー・共有）、
+  画面の下から「タップして検索」の帯。どちらも消せないので、こちらの操作メニューは
+  `selectionBarSlot()` で両方の居場所を避けた高さに置いている（`public/js/tategaki.js`）。
+  指で選んだかどうかは `pointerdown` の `pointerType` で見分ける
+- **出し直したのに古い画面のまま**、という取り違えが起きやすい。`/api/me` が返す `version`
+  （Workers なら版 ID）を画面が見張り、変わっていたら読み込み直しを促す。
+  表示設定に出ている「版」を聞けば、相手がどの版を見ているか分かる
 - 縦書きの箱は `width: 100%` を明示しないと、行が横に伸びて箱ごと広がる（`public/css/style.css`）
 - `[hidden]` は `.modal { display: … }` に負ける。`[hidden] { display: none !important }` で抑えてある
 

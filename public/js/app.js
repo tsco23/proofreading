@@ -1,6 +1,6 @@
 import { $, $$, el, toast, busy, debounce, formatDate, counts, local } from './util.js';
 import { api } from './api.js';
-import { Tategaki, selectionMenuMode } from './tategaki.js';
+import { Tategaki, selectionMenuMode, selectionBarSlot } from './tategaki.js';
 import { openCompare, initCompare, closeCompare } from './compare.js';
 
 const state = {
@@ -14,6 +14,7 @@ const state = {
   selection: null,
   compose: null,
   pointerType: '', // 何で選んだか（指かマウスか）でメニューの出し方を変える
+  version: '', // 読み込んだときの版。ここが動いたら画面が古い
   noteFilter: 'section',
 };
 
@@ -59,6 +60,8 @@ async function boot() {
 
   try {
     const me = await api.me();
+    state.version = me.version || '';
+    $('#app-version').textContent = state.version || '不明';
     state.user = me.user;
     setupSignup(me.signup);
     if (state.user) await showLibrary();
@@ -256,10 +259,17 @@ const refreshSelection = debounce(() => {
   menu.hidden = false;
 
   if (mode === 'bar') {
-    // 下端に貼るので位置の計算は要らない。何を選んだかだけ見せる
-    menu.style.left = '';
-    menu.style.top = '';
     $('#selection-preview').textContent = sel.text;
+    menu.style.left = '';
+    const slot = selectionBarSlot({
+      selectionTop: sel.rect.top,
+      selectionBottom: sel.rect.bottom,
+      viewportHeight: window.innerHeight,
+      headerBottom: $('.bar--reader')?.getBoundingClientRect().bottom ?? 52,
+      barHeight: menu.offsetHeight || 56,
+    });
+    menu.dataset.at = slot.at;
+    menu.style.top = `${Math.round(slot.y)}px`;
     return;
   }
 
@@ -549,6 +559,26 @@ function renderNoteList(list) {
   ])));
 }
 
+/* ---------- 版の見張り ---------- */
+
+/**
+ * 出し直された（版が変わった）のに古い画面を掴んだままだと、直したはずの不具合が
+ * 直っていないように見える。気づけるように、戻ってきたときに版を見比べる。
+ */
+let lastVersionCheck = 0;
+
+async function checkVersion() {
+  if (!state.version) return;
+  if (Date.now() - lastVersionCheck < 60_000) return;
+  lastVersionCheck = Date.now();
+  try {
+    const me = await api.me();
+    if (me.version && me.version !== state.version) {
+      $('#update-note').hidden = false;
+    }
+  } catch { /* 繋がらないだけなら、読書の邪魔はしない */ }
+}
+
 /* ---------- 出来事の結び付け ---------- */
 
 function bindEvents() {
@@ -626,6 +656,15 @@ function bindEvents() {
 
   $('#compose-submit').addEventListener('click', submitAnnotation);
 
+  $('#btn-reload').addEventListener('click', async () => {
+    // 蓄えも新しくしてから読み直す（古い画面を掴み続けないように）
+    try {
+      const reg = await navigator.serviceWorker?.getRegistration();
+      await reg?.update();
+    } catch { /* 使えない環境でも、読み直しはできる */ }
+    location.reload();
+  });
+
   $('#selection-menu').addEventListener('click', (ev) => {
     const act = ev.target.dataset.act;
     if (act === 'annotate') openCompose();
@@ -671,6 +710,7 @@ function bindEvents() {
   window.addEventListener('pagehide', () => savePosition.flush());
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') savePosition.flush();
+    else checkVersion();
   });
 
   document.addEventListener('keydown', (ev) => {

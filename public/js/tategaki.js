@@ -12,6 +12,35 @@ export function selectionMenuMode(pointerType, coarsePointer = false) {
 }
 
 /**
+ * 指で選んだときの帯を、画面のどの高さに置くか。
+ *
+ * Chrome（Android）は選択すると二つの物を出してくる。
+ *   1. 選択範囲のすぐ上（または下）に出る操作バー … コピー・共有など
+ *   2. 画面の下から出てくる「タップして検索」の帯
+ * どちらも消せないので、両方の居場所を空けた上で、残った場所に置く。
+ * 選択が画面の下半分にあるなら上へ、上半分にあるなら下へ逃がす。
+ */
+export function selectionBarSlot({
+  selectionTop,
+  selectionBottom,
+  viewportHeight,
+  headerBottom = 52,
+  barHeight = 56,
+  nativeGap = 72, // 選択のそばに出る操作バーのぶん
+  searchPeek = 104, // 下から出てくる検索の帯のぶん
+}) {
+  const top = headerBottom + 6;
+  const bottom = Math.max(top, viewportHeight - searchPeek - barHeight);
+  const clear = (y) => y + barHeight < selectionTop - nativeGap || y > selectionBottom + nativeGap;
+
+  if (clear(top)) return { at: "top", y: top };
+  if (bottom > top && clear(bottom)) return { at: "bottom", y: bottom };
+
+  // どちらも選択に近いときは、選択の中心から遠いほうへ置く
+  const middle = (selectionTop + selectionBottom) / 2;
+  return middle > viewportHeight / 2 ? { at: "top", y: top } : { at: "bottom", y: bottom };
+}
+/**
  * 縦書きの本文表示。
  * 原稿の生テキストを段落に割り、各段落に「本文の何文字目から」を持たせる。
  * 選択・しおり・指摘の位置は、すべてこの文字位置で表す。
