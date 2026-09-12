@@ -74,18 +74,17 @@
   </main>
 
   <footer class="bar bar--foot">
-    <button id="btn-prev-section" class="btn btn--ghost" type="button">前の節</button>
-    <div class="progress"><div id="progress-bar" class="progress__bar"></div></div>
-    <span id="progress-label" class="muted">0%</span>
     <button id="btn-next-section" class="btn btn--ghost" type="button">次の節</button>
+    <span id="progress-label" class="muted">0%</span>
+    <div class="progress"><div id="progress-bar" class="progress__bar"></div></div>
+    <button id="btn-prev-section" class="btn btn--ghost" type="button">前の節</button>
   </footer>
 
   <!-- 選択したときに出る操作 -->
   <div id="selection-menu" class="selection-menu" hidden>
-    <span id="selection-preview" class="selection-menu__quote"></span>
     <button data-act="annotate" class="btn btn--primary" type="button">指摘する</button>
     <button data-act="bookmark" class="btn" type="button">しおり</button>
-    <button data-act="copy" class="btn btn--ghost" type="button">写す</button>
+    <button data-act="copy" class="btn btn--ghost" type="button">コピー</button>
     <button data-act="dismiss" class="btn btn--icon" type="button" title="選択をやめる">×</button>
   </div>
 

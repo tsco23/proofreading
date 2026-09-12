@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Tategaki, selectionMenuMode, selectionBarSlot } from '../public/js/tategaki.js';
+import { Tategaki, selectionSidePlacement } from '../public/js/tategaki.js';
 
 test('段落は本文の文字位置を持つ', () => {
   const text = '　一行目。\n\n「二行目」\n「三行目」\n';
@@ -17,41 +17,73 @@ test('空行が二つ以上続くと場面の切れ目になる', () => {
   assert.deepEqual(blocks.map((b) => b.type), ['p', 'gap', 'p']);
 });
 
-test('指で選んだときは操作メニューを下端へ逃がす', () => {
-  // Chrome のネイティブの操作バーが選択範囲の直上に出るので、そこを避ける
-  assert.equal(selectionMenuMode('touch'), 'bar');
-  assert.equal(selectionMenuMode('pen'), 'bar');
-  assert.equal(selectionMenuMode('mouse'), 'float');
-  assert.equal(selectionMenuMode('mouse', true), 'float', 'マウスならネイティブのバーは出ない');
-  assert.equal(selectionMenuMode('', true), 'bar', '何で選んだか分からないときは機械の質で決める');
-  assert.equal(selectionMenuMode('', false), 'float');
+test('選んだのと反対側へ、縦に積んだ釦を出す', () => {
+  const 画面 = { width: 1200, height: 800 };
+  const 釦 = { width: 110, height: 170 };
+
+  const 右を選択 = selectionSidePlacement({
+    selection: { left: 900, right: 1000, top: 300, bottom: 400 },
+    viewport: 画面, menu: 釦,
+  });
+  assert.equal(右を選択.side, 'left');
+  assert.ok(右を選択.x + 釦.width <= 900, '選択にかからない');
+
+  const 左を選択 = selectionSidePlacement({
+    selection: { left: 200, right: 300, top: 300, bottom: 400 },
+    viewport: 画面, menu: 釦,
+  });
+  assert.equal(左を選択.side, 'right');
+  assert.ok(左を選択.x >= 300, '選択にかからない');
 });
 
-test('帯はネイティブの操作バーと下の検索バーの両方を避ける', () => {
-  const 画面 = { viewportHeight: 900, headerBottom: 52, barHeight: 56 };
-  const 上端 = 58; // headerBottom + 6
-  const 下端 = 900 - 104 - 56; // 検索の帯のぶんを空けた高さ
+test('片側に入らなければ、入るほうへ回す', () => {
+  const 画面 = { width: 400, height: 800 };
+  const 釦 = { width: 110, height: 170 };
 
-  // 選択が下half にあるなら上へ
-  const 下を選択 = selectionBarSlot({ ...画面, selectionTop: 600, selectionBottom: 700 });
-  assert.equal(下を選択.at, 'top');
-  assert.equal(下を選択.y, 上端);
+  // 画面の右端いっぱいを選ぶと、望みどおり左に置ける
+  const 右端 = selectionSidePlacement({
+    selection: { left: 260, right: 396, top: 100, bottom: 200 },
+    viewport: 画面, menu: 釦,
+  });
+  assert.equal(右端.side, 'left');
 
-  // 選択が上にあるなら下へ（ただし検索の帯の上）
-  const 上を選択 = selectionBarSlot({ ...画面, selectionTop: 100, selectionBottom: 200 });
-  assert.equal(上を選択.at, 'bottom');
-  assert.equal(上を選択.y, 下端);
-  assert.ok(上を選択.y + 画面.barHeight <= 900 - 104, "検索の帯にかからない");
+  // 左端いっぱいなら右へ
+  const 左端 = selectionSidePlacement({
+    selection: { left: 4, right: 140, top: 100, bottom: 200 },
+    viewport: 画面, menu: 釦,
+  });
+  assert.equal(左端.side, 'right');
 
-  // 選択が画面いっぱいに伸びていても、遠いほうへ逃げる
-  const 全面 = selectionBarSlot({ ...画面, selectionTop: 60, selectionBottom: 860 });
-  assert.ok(['top', 'bottom'].includes(全面.at));
+  // 幅いっぱいに選ばれてどちらにも入らないときでも、画面の中に収まる
+  const 全面 = selectionSidePlacement({
+    selection: { left: 0, right: 400, top: 100, bottom: 200 },
+    viewport: 画面, menu: 釦,
+  });
+  assert.ok(全面.x >= 0 && 全面.x + 釦.width <= 400);
+});
 
-  // 選択の上下 72px には置かない
-  for (const [top, bottom] of [[60, 140], [300, 420], [700, 800], [820, 880]]) {
-    const 置き場 = selectionBarSlot({ ...画面, selectionTop: top, selectionBottom: bottom });
-    const 離れている = 置き場.y + 画面.barHeight < top - 72 || 置き場.y > bottom + 72;
-    const 逃げ場がない = top - 72 < 58 + 画面.barHeight && bottom + 72 > 下端;
-    assert.ok(離れている || 逃げ場がない, `${top}〜${bottom} で ${置き場.y}`);
-  }
+test('上下の帯に隠れない高さへ収める', () => {
+  const 画面 = { width: 1200, height: 800 };
+  const 釦 = { width: 110, height: 170 };
+  const 上帯 = 52;
+  const 下帯 = 740;
+
+  const 上を選択 = selectionSidePlacement({
+    selection: { left: 900, right: 1000, top: 0, bottom: 40 },
+    viewport: 画面, menu: 釦, safeTop: 上帯, safeBottom: 下帯,
+  });
+  assert.ok(上を選択.y >= 上帯, '見出しの帯の下に来る');
+
+  const 下を選択 = selectionSidePlacement({
+    selection: { left: 900, right: 1000, top: 760, bottom: 800 },
+    viewport: 画面, menu: 釦, safeTop: 上帯, safeBottom: 下帯,
+  });
+  assert.ok(下を選択.y + 釦.height <= 下帯, '送りの帯の上に収まる');
+
+  // 選択の真ん中に合わせる（帯に当たらないとき）
+  const 真ん中 = selectionSidePlacement({
+    selection: { left: 900, right: 1000, top: 380, bottom: 420 },
+    viewport: 画面, menu: 釦, safeTop: 上帯, safeBottom: 下帯,
+  });
+  assert.equal(真ん中.y, 400 - 釦.height / 2);
 });

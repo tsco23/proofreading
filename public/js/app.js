@@ -1,6 +1,6 @@
 import { $, $$, el, toast, busy, debounce, formatDate, counts, local } from './util.js';
 import { api } from './api.js';
-import { Tategaki, selectionMenuMode, selectionBarSlot } from './tategaki.js';
+import { Tategaki, selectionSidePlacement } from './tategaki.js';
 import { openCompare, initCompare, closeCompare } from './compare.js';
 
 const state = {
@@ -13,7 +13,6 @@ const state = {
   bookmarks: [],
   selection: null,
   compose: null,
-  pointerType: '', // 何で選んだか（指かマウスか）でメニューの出し方を変える
   version: '', // 読み込んだときの版。ここが動いたら画面が古い
   noteFilter: 'section',
 };
@@ -253,36 +252,19 @@ const refreshSelection = debounce(() => {
     return;
   }
   state.selection = sel;
-  const coarse = window.matchMedia?.('(pointer: coarse)').matches ?? false;
-  const mode = selectionMenuMode(state.pointerType, coarse);
-  menu.dataset.mode = mode;
   menu.hidden = false;
 
-  if (mode === 'bar') {
-    $('#selection-preview').textContent = sel.text;
-    menu.style.left = '';
-    const slot = selectionBarSlot({
-      selectionTop: sel.rect.top,
-      selectionBottom: sel.rect.bottom,
-      viewportHeight: window.innerHeight,
-      headerBottom: $('.bar--reader')?.getBoundingClientRect().bottom ?? 52,
-      barHeight: menu.offsetHeight || 56,
-    });
-    menu.dataset.at = slot.at;
-    menu.style.top = `${Math.round(slot.y)}px`;
-    return;
-  }
-
-  $('#selection-preview').textContent = '';
-  const rect = sel.rect;
-  const width = menu.offsetWidth || 220;
-  const height = menu.offsetHeight || 44;
-  let left = rect.left + rect.width / 2 - width / 2;
-  left = Math.min(window.innerWidth - width - 8, Math.max(8, left));
-  let top = rect.top - height - 10;
-  if (top < 8) top = Math.min(window.innerHeight - height - 8, rect.bottom + 10);
-  menu.style.left = `${left}px`;
-  menu.style.top = `${top}px`;
+  // 釦は選択の横へ。選択の下や上に出すと、続きを選ぶ指の行き先を塞ぐ
+  const place = selectionSidePlacement({
+    selection: sel.rect,
+    viewport: { width: window.innerWidth, height: window.innerHeight },
+    menu: { width: menu.offsetWidth || 108, height: menu.offsetHeight || 160 },
+    safeTop: $('.bar--reader')?.getBoundingClientRect().bottom ?? 52,
+    safeBottom: $('.bar--foot')?.getBoundingClientRect().top ?? window.innerHeight,
+  });
+  menu.dataset.side = place.side;
+  menu.style.left = `${Math.round(place.x)}px`;
+  menu.style.top = `${Math.round(place.y)}px`;
 }, 80);
 
 function openCompose({ whole = false } = {}) {
@@ -675,8 +657,8 @@ function bindEvents() {
       hideSelectionMenu();
     } else if (act === 'copy' && state.selection) {
       navigator.clipboard?.writeText(state.selection.text).then(
-        () => toast('写しました'),
-        () => toast('写せませんでした', { error: true }),
+        () => toast('コピーしました'),
+        () => toast('コピーできませんでした', { error: true }),
       );
       hideSelectionMenu();
     }
@@ -744,10 +726,6 @@ function bindEvents() {
 }
 
 function bindReader() {
-  view.el.addEventListener('pointerdown', (ev) => {
-    state.pointerType = ev.pointerType || '';
-  }, { passive: true });
-
   view.el.addEventListener('scroll', () => {
     updateProgress();
     savePosition();

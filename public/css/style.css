@@ -96,8 +96,9 @@ details[open] summary { margin-bottom: 12px; }
 .bar__right { margin-left: auto; display: flex; align-items: center; gap: 4px; }
 .bar--foot { border-bottom: none; border-top: 1px solid var(--line); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
 
-.progress { flex: 1; height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
-.progress__bar { height: 100%; width: 0; background: var(--accent); }
+.progress { flex: 1; height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; display: flex; }
+/* 本文が右から左へ進むので、目盛りも右端から伸びる */
+.progress__bar { height: 100%; width: 0; background: var(--accent); margin-inline-start: auto; }
 
 /* ---- 作品一覧 ---- */
 .library { padding: 20px; display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
@@ -159,30 +160,14 @@ details[open] summary { margin-bottom: 12px; }
 
 /* ---- 選択メニュー・シート ---- */
 .selection-menu {
-  position: fixed; z-index: 40; display: flex; align-items: center; gap: 6px; padding: 6px;
+  /* 釦は縦に積んで選択の横へ置く。選択の上下は、続きを選ぶ指の通り道として空けておく */
+  position: fixed; z-index: 55; display: flex; flex-direction: column; gap: 4px; padding: 6px;
   background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, .18);
 }
-.selection-menu__quote { display: none; }
+.selection-menu .btn { width: 100%; text-align: center; padding: 10px 12px; }
+.selection-menu .btn[data-act="dismiss"] { padding: 6px; font-size: 14px; }
 
-/* 指で選んだときは下端の帯にする。
-   Chrome のネイティブの操作バーが選択範囲の直上に出るので、そこを空けておく。 */
-.selection-menu[data-mode="bar"] {
-  /* top は画面側で決める（ネイティブの操作バーと検索の帯を避けた高さ） */
-  left: 8px; right: 8px; bottom: auto;
-  z-index: 55;
-  flex-wrap: wrap; gap: 8px;
-  border-radius: 12px; padding: 10px 12px;
-  box-shadow: 0 6px 30px rgba(0, 0, 0, .22);
-}
-/* 引用は一行を占め、釦は次の行に並べる（釦が一つだけ折り返すのを防ぐ） */
-.selection-menu[data-mode="bar"] .selection-menu__quote {
-  display: block; flex: 1 1 100%; min-width: 0;
-  font-family: var(--serif); font-size: 13px; color: var(--muted);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.selection-menu[data-mode="bar"] .btn { padding: 11px 14px; }
-.selection-menu[data-mode="bar"] .btn[data-act="dismiss"] { margin-inline-start: auto; }
 .sheet {
   position: fixed; z-index: 50; inset: auto 0 0 0;
   background: var(--paper); border-top: 1px solid var(--line);
@@ -195,9 +180,9 @@ details[open] summary { margin-bottom: 12px; }
 .sheet__head, .drawer__head, .modal__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .sheet__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .quote {
-  margin: 0; padding: 8px 12px; border-inline-start: 3px solid var(--accent-soft);
-  background: var(--bg); font-family: var(--serif); font-size: 14px; line-height: 1.8;
-  max-height: 8em; overflow: auto; white-space: pre-wrap;
+  margin: 0; padding: 6px 10px; border-inline-start: 3px solid var(--accent-soft);
+  background: var(--bg); font-family: var(--serif); font-size: 13px; line-height: 1.7;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 /* ---- 引き出し ---- */

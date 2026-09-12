@@ -1,45 +1,48 @@
 /**
- * 選択したときの操作メニューを、浮かせるか下端の帯にするか。
+ * 選択したときの操作メニューを、本文の「横」のどこへ置くか。
  *
- * Chrome は触って選んだとき、選択範囲の直上にネイティブの操作バーを出す。
- * そこへこちらのメニューを重ねると必ず被るので、指で選んだときは画面下端へ逃がす。
- * マウスで選んだときはネイティブのバーが出ないため、選択のそばに浮かせたほうが近い。
+ * 選択の下や上に出すと、続きを選ぼうとしたときに指の行き先を塞ぐ。
+ * Chrome が触って選んだときに出すネイティブの操作バーも、選択の直上・直下に来る。
+ * そこで縦に積んだ釦を横へ逃がし、**右を選んだら左、左を選んだら右**に置く。
+ * 読んでいる側（選択したばかりの場所）を隠さないための向きで、縦書きの進み方とは関係ない。
  */
-export function selectionMenuMode(pointerType, coarsePointer = false) {
-  if (pointerType === 'touch' || pointerType === 'pen') return 'bar';
-  if (pointerType === 'mouse') return 'float';
-  return coarsePointer ? 'bar' : 'float'; // 鍵盤で選んだときなどは機械の質で決める
-}
-
-/**
- * 指で選んだときの帯を、画面のどの高さに置くか。
- *
- * Chrome（Android）は選択すると二つの物を出してくる。
- *   1. 選択範囲のすぐ上（または下）に出る操作バー … コピー・共有など
- *   2. 画面の下から出てくる「タップして検索」の帯
- * どちらも消せないので、両方の居場所を空けた上で、残った場所に置く。
- * 選択が画面の下半分にあるなら上へ、上半分にあるなら下へ逃がす。
- */
-export function selectionBarSlot({
-  selectionTop,
-  selectionBottom,
-  viewportHeight,
-  headerBottom = 52,
-  barHeight = 56,
-  nativeGap = 72, // 選択のそばに出る操作バーのぶん
-  searchPeek = 104, // 下から出てくる検索の帯のぶん
+export function selectionSidePlacement({
+  selection,
+  viewport,
+  menu,
+  gap = 12,
+  edge = 6,
+  safeTop = 0,
+  safeBottom = viewport.height,
 }) {
-  const top = headerBottom + 6;
-  const bottom = Math.max(top, viewportHeight - searchPeek - barHeight);
-  const clear = (y) => y + barHeight < selectionTop - nativeGap || y > selectionBottom + nativeGap;
+  const middle = (selection.left + selection.right) / 2;
+  const wantLeft = middle > viewport.width / 2;
 
-  if (clear(top)) return { at: "top", y: top };
-  if (bottom > top && clear(bottom)) return { at: "bottom", y: bottom };
+  const leftSlot = selection.left - gap - menu.width;
+  const rightSlot = selection.right + gap;
+  const fitsLeft = leftSlot >= edge;
+  const fitsRight = rightSlot + menu.width <= viewport.width - edge;
 
-  // どちらも選択に近いときは、選択の中心から遠いほうへ置く
-  const middle = (selectionTop + selectionBottom) / 2;
-  return middle > viewportHeight / 2 ? { at: "top", y: top } : { at: "bottom", y: bottom };
+  let side;
+  let x;
+  if (wantLeft && fitsLeft) [side, x] = ['left', leftSlot];
+  else if (!wantLeft && fitsRight) [side, x] = ['right', rightSlot];
+  else if (fitsLeft) [side, x] = ['left', leftSlot];
+  else if (fitsRight) [side, x] = ['right', rightSlot];
+  else {
+    // どちら側にも入らないほど広く選ばれたときは、望むほうの端に寄せる
+    side = wantLeft ? 'left' : 'right';
+    x = side === 'left' ? edge : viewport.width - menu.width - edge;
+  }
+
+  // 縦は選択の真ん中に合わせ、上下の帯の内側へ収める
+  const centre = (selection.top + selection.bottom) / 2 - menu.height / 2;
+  const lowest = Math.max(safeTop + edge, safeBottom - menu.height - edge);
+  const y = Math.min(Math.max(centre, safeTop + edge), lowest);
+
+  return { side, x, y };
 }
+
 /**
  * 縦書きの本文表示。
  * 原稿の生テキストを段落に割り、各段落に「本文の何文字目から」を持たせる。
