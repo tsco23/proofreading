@@ -142,8 +142,6 @@ details[open] summary { margin-bottom: 12px; }
   writing-mode: horizontal-tb; text-orientation: sideways;
   display: inline-block; margin-inline-end: 4px;
 }
-/* 半角の ? ! は縦書きで横倒しになる。字はそのままに、立てて見せる */
-.upright { text-orientation: upright; -webkit-text-orientation: upright; }
 .tategaki mark { background: var(--mark-open); color: inherit; border-radius: 2px; }
 .tategaki mark.mark--done { background: var(--mark-done); }
 .tategaki mark.mark--bookmark { background: var(--mark-bm); }

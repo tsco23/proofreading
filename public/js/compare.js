@@ -1,6 +1,5 @@
 import { $, el, busy, toast, formatDate } from './util.js';
 import { api } from './api.js';
-import { appendUpright } from './tategaki.js';
 
 let current = null;
 
@@ -12,14 +11,14 @@ function lineNodes(row, side) {
   if (row.type === 'change' && row.parts) {
     const p = el('p', { class: `compare__line compare__line--${side === 'before' ? 'del' : 'ins'}` });
     for (const part of row.parts) {
-      if (part.type === 'equal') appendUpright(p, part.text);
-      else if (part.type === 'del' && side === 'before') p.append(appendUpright(el('del'), part.text));
-      else if (part.type === 'ins' && side === 'after') p.append(appendUpright(el('ins'), part.text));
+      if (part.type === 'equal') p.append(document.createTextNode(part.text));
+      else if (part.type === 'del' && side === 'before') p.append(el('del', { text: part.text }));
+      else if (part.type === 'ins' && side === 'after') p.append(el('ins', { text: part.text }));
     }
     return p;
   }
   const cls = row.type === 'del' ? 'compare__line--del' : row.type === 'ins' ? 'compare__line--ins' : '';
-  return appendUpright(el('p', { class: `compare__line ${cls}`.trim() }), text);
+  return el('p', { class: `compare__line ${cls}`.trim(), text });
 }
 
 function pickRows(rows, showAll) {
