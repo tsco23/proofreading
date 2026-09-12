@@ -1,4 +1,17 @@
 /**
+ * 選択したときの操作メニューを、浮かせるか下端の帯にするか。
+ *
+ * Chrome は触って選んだとき、選択範囲の直上にネイティブの操作バーを出す。
+ * そこへこちらのメニューを重ねると必ず被るので、指で選んだときは画面下端へ逃がす。
+ * マウスで選んだときはネイティブのバーが出ないため、選択のそばに浮かせたほうが近い。
+ */
+export function selectionMenuMode(pointerType, coarsePointer = false) {
+  if (pointerType === 'touch' || pointerType === 'pen') return 'bar';
+  if (pointerType === 'mouse') return 'float';
+  return coarsePointer ? 'bar' : 'float'; // 鍵盤で選んだときなどは機械の質で決める
+}
+
+/**
  * 縦書きの本文表示。
  * 原稿の生テキストを段落に割り、各段落に「本文の何文字目から」を持たせる。
  * 選択・しおり・指摘の位置は、すべてこの文字位置で表す。

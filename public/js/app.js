@@ -1,6 +1,6 @@
 import { $, $$, el, toast, busy, debounce, formatDate, counts, local } from './util.js';
 import { api } from './api.js';
-import { Tategaki } from './tategaki.js';
+import { Tategaki, selectionMenuMode } from './tategaki.js';
 import { openCompare, initCompare, closeCompare } from './compare.js';
 
 const state = {
@@ -13,6 +13,7 @@ const state = {
   bookmarks: [],
   selection: null,
   compose: null,
+  pointerType: '', // 何で選んだか（指かマウスか）でメニューの出し方を変える
   noteFilter: 'section',
 };
 
@@ -249,7 +250,20 @@ const refreshSelection = debounce(() => {
     return;
   }
   state.selection = sel;
+  const coarse = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+  const mode = selectionMenuMode(state.pointerType, coarse);
+  menu.dataset.mode = mode;
   menu.hidden = false;
+
+  if (mode === 'bar') {
+    // 下端に貼るので位置の計算は要らない。何を選んだかだけ見せる
+    menu.style.left = '';
+    menu.style.top = '';
+    $('#selection-preview').textContent = sel.text;
+    return;
+  }
+
+  $('#selection-preview').textContent = '';
   const rect = sel.rect;
   const width = menu.offsetWidth || 220;
   const height = menu.offsetHeight || 44;
@@ -616,7 +630,11 @@ function bindEvents() {
     const act = ev.target.dataset.act;
     if (act === 'annotate') openCompose();
     else if (act === 'bookmark') addBookmark();
-    else if (act === 'copy' && state.selection) {
+    else if (act === 'dismiss') {
+      // ネイティブの操作バーも一緒に消えるよう、選択そのものを解く
+      window.getSelection()?.removeAllRanges();
+      hideSelectionMenu();
+    } else if (act === 'copy' && state.selection) {
       navigator.clipboard?.writeText(state.selection.text).then(
         () => toast('写しました'),
         () => toast('写せませんでした', { error: true }),
@@ -686,6 +704,10 @@ function bindEvents() {
 }
 
 function bindReader() {
+  view.el.addEventListener('pointerdown', (ev) => {
+    state.pointerType = ev.pointerType || '';
+  }, { passive: true });
+
   view.el.addEventListener('scroll', () => {
     updateProgress();
     savePosition();
