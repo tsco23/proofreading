@@ -226,6 +226,27 @@ test('Workers 版：ログインから指摘の書き戻し、前後の比較ま
     assert.equal((await call('GET', '/api/state/novel1')).payload.bookmarks.length, 0);
   });
 
+  await t.test('招待コードを設けたら、最初の一人にも要る', async () => {
+    const guarded = { ...env, DB: createD1(schema), INVITE_CODE: 'yamanoue' };
+    const post = (body) => worker.fetch(new Request('https://example.test/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }), guarded);
+
+    const me = await worker.fetch(new Request('https://example.test/api/me'), guarded);
+    const status = await me.json();
+    assert.equal(status.signup.bootstrap, true, 'まだ誰も居ない');
+    assert.equal(status.signup.needsInvite, true, 'それでも合言葉は要る');
+
+    const refused = await post({ loginId: 'stranger', name: '通りすがり', password: 'password123' });
+    assert.equal(refused.status, 403, '合言葉なしでは管理者になれない');
+
+    const ok = await post({ loginId: 'kato', name: '加藤', password: 'password123', inviteCode: 'yamanoue' });
+    assert.equal(ok.status, 200);
+    assert.equal((await ok.json()).user.role, 'admin');
+  });
+
   await t.test('別の校正者は招待コードが要る', async () => {
     const res = await call('POST', '/api/auth/signup', { loginId: 'chino', name: '茅野', password: 'password123' });
     assert.equal(res.status, 403);

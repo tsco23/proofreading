@@ -64,7 +64,8 @@ export const routes = [
       user: ctx.user || null,
       signup: {
         enabled: userCount === 0 || Boolean(invite),
-        needsInvite: userCount > 0 && Boolean(invite),
+        // 招待コードを設けたら、最初の一人にも要る
+        needsInvite: Boolean(invite),
         bootstrap: userCount === 0,
       },
     };
@@ -94,9 +95,12 @@ export const routes = [
     const userCount = await db.countUsers(ctx.db);
     const bootstrap = userCount === 0;
     const invite = ctx.env.INVITE_CODE || '';
-    if (!bootstrap) {
-      if (!invite) throw new HttpError(403, '自己登録は止めてあります。管理者に作ってもらってください');
+    // 招待コードがあるなら、最初の一人にも要る。
+    // 誰も登録していない隙に、管理者の席を横から取られないようにするため。
+    if (invite) {
       if (inviteCode !== invite) throw new HttpError(403, '招待コードが違います');
+    } else if (!bootstrap) {
+      throw new HttpError(403, '自己登録は止めてあります。管理者に作ってもらってください');
     }
     const id = String(loginId || '').trim().toLowerCase();
     if (!/^[a-z0-9._-]{2,32}$/.test(id)) {

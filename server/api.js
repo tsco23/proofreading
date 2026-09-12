@@ -48,7 +48,12 @@ export const routes = [
     const userCount = await auth.countUsers();
     return {
       user: auth.publicUser(ctx.user),
-      signup: { enabled: userCount === 0 || Boolean(INVITE_CODE), needsInvite: userCount > 0 && Boolean(INVITE_CODE), bootstrap: userCount === 0 },
+      signup: {
+        enabled: userCount === 0 || Boolean(INVITE_CODE),
+        // 招待コードを設けたら、最初の一人にも要る
+        needsInvite: Boolean(INVITE_CODE),
+        bootstrap: userCount === 0,
+      },
     };
   }],
 
@@ -71,9 +76,12 @@ export const routes = [
     const { loginId, name, password, inviteCode } = ctx.body || {};
     const userCount = await auth.countUsers();
     const bootstrap = userCount === 0;
-    if (!bootstrap) {
-      if (!INVITE_CODE) throw new HttpError(403, '自己登録は止めてあります。管理者に作ってもらってください');
+    // 招待コードがあるなら、最初の一人にも要る。
+    // 誰も登録していない隙に、管理者の席を横から取られないようにするため。
+    if (INVITE_CODE) {
       if (inviteCode !== INVITE_CODE) throw new HttpError(403, '招待コードが違います');
+    } else if (!bootstrap) {
+      throw new HttpError(403, '自己登録は止めてあります。管理者に作ってもらってください');
     }
     const user = await auth.createUser({ loginId, name, password, role: bootstrap ? 'admin' : 'proofreader' });
     const { token } = await auth.startSession(user.id);
