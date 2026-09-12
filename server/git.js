@@ -69,7 +69,10 @@ export async function ensureClone(novel) {
   if (await exists(path.join(novel.workdir, '.git'))) return novel.workdir;
 
   await fs.mkdir(WORKSPACE_DIR, { recursive: true });
-  const args = ['clone', '--single-branch'];
+  // 作業コピーは機械が読むものなので、改行を勝手に変えさせない
+  // （Windows の core.autocrlf=true のままだと、git の中身と作業コピーがずれて
+  //   指摘の文字位置と前後の比較が壊れる）
+  const args = ['clone', '--single-branch', '-c', 'core.autocrlf=false', '-c', 'core.eol=lf'];
   if (novel.branch) args.push('--branch', novel.branch);
   args.push(novel.repo, novel.workdir);
   await git(args);
