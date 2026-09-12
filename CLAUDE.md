@@ -21,7 +21,7 @@
 **Node 22 以上が要る**（`wrangler` が要求する。`node:sqlite` を使う試験も同じ）。
 
 ```bash
-npm test            # 49 件。git が要る。本物の原稿には触らない
+npm test            # 52 件。git が要る。本物の原稿には触らない
 npm start           # 自前サーバ版 http://localhost:8787
 npm run cf:dev      # Workers 版を手元の workerd で http://localhost:8788
 ```
@@ -84,8 +84,22 @@ CLOUDFLARE_API_TOKEN=... npx wrangler d1 execute proofreading --remote \
 - 縦書きの箱は `width: 100%` を明示しないと、行が横に伸びて箱ごと広がる（`public/css/style.css`）
 - `[hidden]` は `.modal { display: … }` に負ける。`[hidden] { display: none !important }` で抑えてある
 
+## 出し方
+
+`tsco23/proofreading` の `claude/proofreading-web-app-ax72xf` を Cloudflare の
+**Workers Builds** に繋いである。**押せば出る。**手元で `wrangler deploy` する必要も、
+セッションに `CLOUDFLARE_API_TOKEN` を渡す必要もない。
+`GITHUB_TOKEN` と `INVITE_CODE` は Worker 側に残り続け、Git 経由の deploy では消えない。
+
+押したあとは、配信中のファイルを見れば反映が分かる。
+
+```bash
+curl -s https://proofreading.ts-co23.workers.dev/js/app.js | grep -c selectionSidePlacement
+```
+
 ## まだ確かめていないこと
 
 - **本番で指摘を実際にコミットする経路。** 試すと `tsco23/novel1` に本物のコミットが入るので
-  保留にしてある（トークンの読み取りと `push: true` は確認済み）。
-  最初の指摘を送ったときに分かる
+  保留にしてある。最初の指摘を送ったときに分かる
+- 読み取りのほう（目次・本文・履歴・inbox）は、本物の GitHub API に対して確認済み。
+  private リポジトリを読めること、二度目の目次が控えで済むことも見てある
