@@ -25,7 +25,6 @@ export function selectionSidePlacement({
 
   let side;
   let x;
-  // eslint-disable-next-line prefer-const -- 下で画面内へ寄せ直す
   if (wantLeft && fitsLeft) [side, x] = ['left', leftSlot];
   else if (!wantLeft && fitsRight) [side, x] = ['right', rightSlot];
   else if (fitsLeft) [side, x] = ['left', leftSlot];
