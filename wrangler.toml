@@ -19,7 +19,7 @@ not_found_handling = "none"
 [[d1_databases]]
 binding = "DB"
 database_name = "proofreading"
-database_id = "ここに wrangler d1 create の出力を貼る"
+database_id = "71966a46-113f-4ed2-9763-3e9a4bea8283"
 
 [vars]
 # 作品の登録。増やすときはこの配列に足して deploy し直す
@@ -31,7 +31,7 @@ SESSION_DAYS = "30"
 # パスワードの鍛え回数。
 # Workers の無料枠は 1 リクエスト 10ms までなので、無料枠で使うなら 10000 前後まで下げる。
 # 有料（Workers Paid）ならこのままでよい。
-PBKDF2_ITERATIONS = "100000"
+PBKDF2_ITERATIONS = "10000"   # 無料枠（CPU 10ms）に収めるため下げてある
 
 # 招待コードを入れると、校正者が自分で登録できるようになる
 # INVITE_CODE = "yamanoue"
