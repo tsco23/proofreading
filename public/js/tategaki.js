@@ -44,6 +44,42 @@ export function selectionSidePlacement({
 }
 
 /**
+ * 縦書きで寝てしまう約物を拾い出す。
+ *
+ * 半角の「?」「!」は縦書きだと横倒しになる（全角の「？」「！」は立つ）。
+ * 原稿の字を勝手に全角へ書き換えると、半角のまま書かれているという事実まで
+ * 隠してしまう。**字はそのままに、立てて見せる**ための切り分け。
+ */
+const LYING_PUNCT = /[!?]+/g;
+
+export function splitUprightRuns(text) {
+  const runs = [];
+  let last = 0;
+  for (const hit of text.matchAll(LYING_PUNCT)) {
+    if (hit.index > last) runs.push({ text: text.slice(last, hit.index), upright: false });
+    runs.push({ text: hit[0], upright: true });
+    last = hit.index + hit[0].length;
+  }
+  if (last < text.length) runs.push({ text: text.slice(last), upright: false });
+  return runs;
+}
+
+/** 立てる字だけ span で包みながら、text を node へ足す。 */
+export function appendUpright(node, text) {
+  for (const run of splitUprightRuns(text)) {
+    if (!run.upright) {
+      node.append(document.createTextNode(run.text));
+      continue;
+    }
+    const span = document.createElement('span');
+    span.className = 'upright';
+    span.textContent = run.text;
+    node.append(span);
+  }
+  return node;
+}
+
+/**
  * 縦書きの本文表示。
  * 原稿の生テキストを段落に割り、各段落に「本文の何文字目から」を持たせる。
  * 選択・しおり・指摘の位置は、すべてこの文字位置で表す。
@@ -97,7 +133,7 @@ export class Tategaki {
       p.dataset.start = String(block.start);
       p.dataset.end = String(block.end);
       if (showNumbers) p.dataset.n = String(n);
-      p.textContent = block.text;
+      appendUpright(p, block.text);
       frag.append(p);
     }
     const end = document.createElement('p');
@@ -125,7 +161,10 @@ export class Tategaki {
         .sort((a, b) => a.from - b.from);
       const text = this.text.slice(start, end);
       if (!hits.length) {
-        if (p.childNodes.length !== 1 || p.firstChild.nodeType !== 3) p.textContent = text;
+        // 前に敷いた色が残っているときだけ組み直す（毎回作り直すと選択が切れる）
+        if (p.querySelector('mark')) {
+          p.replaceChildren(appendUpright(document.createDocumentFragment(), text));
+        }
         continue;
       }
       const frag = document.createDocumentFragment();
@@ -133,16 +172,16 @@ export class Tategaki {
       for (const hit of hits) {
         const from = Math.max(cursor, hit.from);
         if (from >= hit.to) continue;
-        if (from > cursor) frag.append(document.createTextNode(text.slice(cursor, from)));
+        if (from > cursor) appendUpright(frag, text.slice(cursor, from));
         const mark = document.createElement('mark');
         mark.className = hit.className || '';
         if (hit.id) mark.dataset.markId = hit.id;
         if (hit.title) mark.title = hit.title;
-        mark.textContent = text.slice(from, hit.to);
+        appendUpright(mark, text.slice(from, hit.to));
         frag.append(mark);
         cursor = hit.to;
       }
-      if (cursor < text.length) frag.append(document.createTextNode(text.slice(cursor)));
+      if (cursor < text.length) appendUpright(frag, text.slice(cursor));
       p.replaceChildren(frag);
     }
   }

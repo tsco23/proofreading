@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Tategaki, selectionSidePlacement } from '../public/js/tategaki.js';
+import { Tategaki, selectionSidePlacement, splitUprightRuns } from '../public/js/tategaki.js';
 
 test('段落は本文の文字位置を持つ', () => {
   const text = '　一行目。\n\n「二行目」\n「三行目」\n';
@@ -86,4 +86,27 @@ test('上下の帯に隠れない高さへ収める', () => {
     viewport: 画面, menu: 釦, safeTop: 上帯, safeBottom: 下帯,
   });
   assert.equal(真ん中.y, 400 - 釦.height / 2);
+});
+
+test('縦書きで寝る半角の約物だけを拾う', () => {
+  // 字は書き換えない。立てる場所だけ分ける
+  assert.deepEqual(splitUprightRuns('「あれ?」'), [
+    { text: '「あれ', upright: false },
+    { text: '?', upright: true },
+    { text: '」', upright: false },
+  ]);
+
+  // 連なりは一つにまとめる（!? が離れて見えないように）
+  assert.deepEqual(splitUprightRuns('なんだと!?'), [
+    { text: 'なんだと', upright: false },
+    { text: '!?', upright: true },
+  ]);
+
+  // 全角は縦書きでも立つので、触らない
+  assert.deepEqual(splitUprightRuns('そう？'), [{ text: 'そう？', upright: false }]);
+
+  // 切り出しても字は変わらない
+  for (const src of ['「は?」', 'あ!!すごい?', '普通の文。', '', '?']) {
+    assert.equal(splitUprightRuns(src).map((r) => r.text).join(''), src);
+  }
 });

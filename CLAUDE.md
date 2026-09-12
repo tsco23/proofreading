@@ -21,7 +21,7 @@
 **Node 22 以上が要る**（`wrangler` が要求する。`node:sqlite` を使う試験も同じ）。
 
 ```bash
-npm test            # 52 件。git が要る。本物の原稿には触らない
+npm test            # 53 件。git が要る。本物の原稿には触らない
 npm start           # 自前サーバ版 http://localhost:8787
 npm run cf:dev      # Workers 版を手元の workerd で http://localhost:8788
 ```
@@ -81,6 +81,10 @@ CLOUDFLARE_API_TOKEN=... npx wrangler d1 execute proofreading --remote \
 - **出し直したのに古い画面のまま**、という取り違えが起きやすい。`/api/me` が返す `version`
   （Workers なら版 ID）を画面が見張り、変わっていたら読み込み直しを促す。
   表示設定に出ている「版」を聞けば、相手がどの版を見ているか分かる
+- **半角の `?` `!` は縦書きで横倒しになる**（全角の `？` `！` は立つ）。
+  原稿の字を全角へ書き換えると「半角で書かれている」という事実まで隠してしまうので、
+  字はそのままに `<span class="upright">` で包んで立てている（`appendUpright()`）。
+  1 文字を 1 文字のまま包むので、指摘の文字位置はずれない
 - 縦書きの箱は `width: 100%` を明示しないと、行が横に伸びて箱ごと広がる（`public/css/style.css`）
 - `[hidden]` は `.modal { display: … }` に負ける。`[hidden] { display: none !important }` で抑えてある
 
