@@ -60,10 +60,11 @@ npm run cf:secret           # wrangler secret put GITHUB_TOKEN
 `wrangler.toml` の `vars.NOVELS` に JSON で書く。増やすときはここに足して deploy し直す。
 
 ```toml
-NOVELS = '{"novels":[{"id":"novel1","title":"烏川高校山岳部（仮題）","repo":"https://github.com/tsco23/novel1","branch":"claude/novel-writing-constraints-wuury5"}]}'
+NOVELS = '{"novels":[{"id":"tozan","title":"（未定）高校山岳部・インターハイ登山競技","repo":"https://github.com/tsco23/novel1","branch":"claude/novel-writing-constraints-wuury5","workDir":"works/tozan"}]}'
 ```
 
-`manuscriptDir` `inboxPath` `structurePath` `sectionsPath` も作品ごとに変えられる（既定は
+`workDir` はリポジトリの中の作品の根。`manuscriptDir` `inboxPath` `structurePath` `sectionsPath` は
+その根からの相対で、作品ごとに変えられる（既定は
 `manuscript` / `review/inbox.md` / `outline/structure.md` / `outline/sections.md`）。
 
 ### 4. 出す

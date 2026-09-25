@@ -26,8 +26,9 @@ database_name = "proofreading"
 database_id = "71966a46-113f-4ed2-9763-3e9a4bea8283"
 
 [vars]
-# 作品の登録。増やすときはこの配列に足して deploy し直す
-NOVELS = '{"novels":[{"id":"novel1","title":"烏川高校山岳部（仮題）","repo":"https://github.com/tsco23/novel1","branch":"claude/novel-writing-constraints-wuury5"}]}'
+# 作品の登録。増やすときはこの配列に足して push する（Workers Builds が出し直す）
+# workDir … 原稿リポジトリの中の作品の根。置き場の指定はどれもここからの相対になる
+NOVELS = '{"novels":[{"id":"tozan","title":"（未定）高校山岳部・インターハイ登山競技","repo":"https://github.com/tsco23/novel1","branch":"claude/novel-writing-constraints-wuury5","workDir":"works/tozan"}]}'
 
 # ログインを保つ日数
 SESSION_DAYS = "30"

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { applyWorkDir } from '../shared/novel.js';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -53,7 +54,7 @@ function normalize(raw, file) {
   if (!raw.repo && !raw.localPath) {
     throw new Error(`${file}: ${raw.id} に repo か localPath のどちらかが要ります`);
   }
-  const novel = { ...DEFAULTS, ...raw };
+  const novel = applyWorkDir({ ...DEFAULTS, ...raw });
   novel.title = novel.title || novel.id;
   if (novel.localPath) novel.localPath = path.resolve(ROOT, novel.localPath);
   novel.workdir = novel.localPath || path.join(WORKSPACE_DIR, novel.id);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Tategaki, selectionSidePlacement } from '../public/js/tategaki.js';
+import { Tategaki, selectionSidePlacement, noteRanges } from '../public/js/tategaki.js';
 
 test('段落は本文の文字位置を持つ', () => {
   const text = '　一行目。\n\n「二行目」\n「三行目」\n';
@@ -98,4 +98,16 @@ test('上下の帯に隠れない高さへ収める', () => {
     viewport: 画面, menu: 釦, safeTop: 上帯, safeBottom: 下帯,
   });
   assert.equal(真ん中.y, 400 - 釦.height / 2);
+});
+
+test('本文の注は消さずに、範囲だけを拾う', () => {
+  const text = '<!-- @b1 -->\n　灯は<!-- 要確認 -->窓を見た。\n<!-- 二行に\nまたがる -->\n';
+  const ranges = noteRanges(text);
+  assert.equal(ranges.length, 3);
+  assert.deepEqual(ranges.map(([a, b]) => text.slice(a, b)), ['<!-- @b1 -->', '<!-- 要確認 -->', '<!-- 二行に\nまたがる -->']);
+
+  // 段落の字は元のまま（注も段落の中に残る）
+  const paras = Tategaki.parse(text).filter((b) => b.type === 'p');
+  assert.equal(paras[0].text, '<!-- @b1 -->');
+  assert.equal(paras[1].text, '　灯は<!-- 要確認 -->窓を見た。');
 });

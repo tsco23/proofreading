@@ -2,7 +2,7 @@
  * 原稿リポジトリの読み書き（Workers 版）。
  * Node 版の workspace.js ＋ novel.js にあたる。clone の代わりに GitHub API を叩く。
  */
-import { buildToc, sectionPath, findSection, withNeighbours, countChars } from '../shared/novel.js';
+import { buildToc, sectionPath, findSection, withNeighbours, countChars, stripNotes } from '../shared/novel.js';
 import { remember, forget } from './cache.js';
 import { getTocCache, setTocCache, clearTocCache, getSectionStats, putSectionStats } from './db.js';
 
@@ -49,8 +49,8 @@ export async function toc(db, gh, novel, { fresh = false } = {}) {
   const headSha = await head(gh, novel, { fresh });
   const entries = await tree(gh, novel, headSha, { fresh });
 
-  const manuscript = entries.filter((e) =>
-    new RegExp(`^${novel.manuscriptDir}/ch\\d+/ch\\d+-\\d+\\.md$`).test(e.path));
+  const dir = novel.manuscriptDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const manuscript = entries.filter((e) => new RegExp(`^${dir}/ch\\d+/ch\\d+-\\d+\\.md$`).test(e.path));
   const structure = entries.find((e) => e.path === novel.structurePath);
   const sections = entries.find((e) => e.path === novel.sectionsPath);
 
@@ -72,8 +72,9 @@ export async function toc(db, gh, novel, { fresh = false } = {}) {
   const files = await mapLimited(manuscript, 6, async (entry) => {
     const hit = known.get(entry.sha);
     if (hit) return { path: entry.path, chars: hit.chars, opening: hit.opening };
-    const text = await blobText(gh, novel, entry.sha);
-    const stats = { sha: entry.sha, chars: countChars(text), opening: firstLine(text).slice(0, 40) };
+    // 字数と冒頭は、作者の道具と同じく注を落とした清書から数える
+    const clean = stripNotes(await blobText(gh, novel, entry.sha));
+    const stats = { sha: entry.sha, chars: countChars(clean), opening: firstLine(clean).slice(0, 40) };
     learned.push(stats);
     return { path: entry.path, chars: stats.chars, opening: stats.opening };
   });

@@ -47,6 +47,16 @@ export function selectionSidePlacement({
 }
 
 /**
+ * 本文の中の注（<!-- … -->）の範囲。
+ * ビートの印（<!-- @b1 -->）や書きかけの覚え書きで、**校正にも使うので消さない。**
+ * 字はそのままに、地の文と見分けがつくよう包むだけにする。
+ * 字が変わらないので、指摘の「何文字目か」もずれない。
+ */
+export function noteRanges(text) {
+  return [...String(text).matchAll(/<!--[\s\S]*?-->/g)].map((m) => [m.index, m.index + m[0].length]);
+}
+
+/**
  * 縦書きの本文表示。
  * 原稿の生テキストを段落に割り、各段落に「本文の何文字目から」を持たせる。
  * 選択・しおり・指摘の位置は、すべてこの文字位置で表す。
@@ -85,6 +95,7 @@ export class Tategaki {
 
   render(text, { showNumbers = false } = {}) {
     this.text = text;
+    this.notes = noteRanges(text);
     this.showNumbers = showNumbers;
     this.blocks = Tategaki.parse(text);
     const frag = document.createDocumentFragment();
@@ -100,7 +111,8 @@ export class Tategaki {
       p.dataset.start = String(block.start);
       p.dataset.end = String(block.end);
       if (showNumbers) p.dataset.n = String(n);
-      p.textContent = block.text;
+      if (this.isNoteOnly(block.start, block.end)) p.classList.add('para--note');
+      this.appendRaw(p, block.start, block.end);
       frag.append(p);
     }
     const end = document.createElement('p');
@@ -117,6 +129,37 @@ export class Tategaki {
     return [...this.el.querySelectorAll('p.para')];
   }
 
+  /** 本文の [from, to) を node へ足す。注の部分だけ span.ms-note で包む。字は変えない。 */
+  appendRaw(node, from, to) {
+    let cursor = from;
+    for (const [a, b] of this.notes || []) {
+      if (b <= cursor || a >= to) continue;
+      const s = Math.max(a, cursor);
+      const e = Math.min(b, to);
+      if (s > cursor) node.append(document.createTextNode(this.text.slice(cursor, s)));
+      const span = document.createElement('span');
+      span.className = 'ms-note'; // 指摘一覧の .note（札）とは別物
+      span.textContent = this.text.slice(s, e);
+      node.append(span);
+      cursor = e;
+    }
+    if (cursor < to) node.append(document.createTextNode(this.text.slice(cursor, to)));
+    return node;
+  }
+
+  /** その行が注だけでできているか（印の行を小さく見せるため）。 */
+  isNoteOnly(from, to) {
+    let visible = '';
+    let cursor = from;
+    for (const [a, b] of this.notes || []) {
+      if (b <= cursor || a >= to) continue;
+      visible += this.text.slice(cursor, Math.max(a, cursor));
+      cursor = Math.min(b, to);
+    }
+    visible += this.text.slice(cursor, to);
+    return !visible.trim() && cursor > from;
+  }
+
   /** 指摘やしおりの位置に色を敷く。ranges: [{start,end,className,id,title}] */
   highlight(ranges) {
     for (const p of this.paragraphs()) {
@@ -126,26 +169,27 @@ export class Tategaki {
         .filter((r) => Number.isInteger(r.start) && Number.isInteger(r.end) && r.end > start && r.start < end)
         .map((r) => ({ ...r, from: Math.max(0, r.start - start), to: Math.min(end - start, r.end - start) }))
         .sort((a, b) => a.from - b.from);
-      const text = this.text.slice(start, end);
       if (!hits.length) {
-        if (p.childNodes.length !== 1 || p.firstChild.nodeType !== 3) p.textContent = text;
+        // 前に敷いた色が残っているときだけ組み直す（毎回作り直すと選択が切れる）
+        if (p.querySelector('mark')) p.replaceChildren(this.appendRaw(document.createDocumentFragment(), start, end));
         continue;
       }
       const frag = document.createDocumentFragment();
-      let cursor = 0;
+      let cursor = start;
       for (const hit of hits) {
-        const from = Math.max(cursor, hit.from);
-        if (from >= hit.to) continue;
-        if (from > cursor) frag.append(document.createTextNode(text.slice(cursor, from)));
+        const from = Math.max(cursor, start + hit.from);
+        const to = start + hit.to;
+        if (from >= to) continue;
+        if (from > cursor) this.appendRaw(frag, cursor, from);
         const mark = document.createElement('mark');
         mark.className = hit.className || '';
         if (hit.id) mark.dataset.markId = hit.id;
         if (hit.title) mark.title = hit.title;
-        mark.textContent = text.slice(from, hit.to);
+        this.appendRaw(mark, from, to);
         frag.append(mark);
-        cursor = hit.to;
+        cursor = to;
       }
-      if (cursor < text.length) frag.append(document.createTextNode(text.slice(cursor)));
+      if (cursor < end) this.appendRaw(frag, cursor, end);
       p.replaceChildren(frag);
     }
   }

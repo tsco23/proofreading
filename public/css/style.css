@@ -143,6 +143,9 @@ details[open] summary { margin-bottom: 12px; }
   display: inline-block; margin-inline-end: 4px;
 }
 .tategaki mark { background: var(--mark-open); color: inherit; border-radius: 2px; }
+/* 本文の中の注（<!-- @b1 --> など）。校正に使うので消さず、地の文と見分けがつくよう薄くする */
+.tategaki .ms-note { color: var(--muted); font-family: var(--sans); font-size: .72em; letter-spacing: 0; }
+.tategaki .para--note { line-height: 1.4; }
 .tategaki mark[data-mark-id] { cursor: pointer; }
 .tategaki mark.mark--done { background: var(--mark-done); }
 .tategaki mark.mark--bookmark { background: var(--mark-bm); }

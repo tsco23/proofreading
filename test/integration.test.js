@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { writeWork, WORK_SECTION } from './helpers/work-layout.js';
 
 const run = promisify(execFile);
 const git = (args, cwd) => run('git', args, { cwd, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } });
@@ -43,6 +44,7 @@ async function makeFixture(root) {
     path.join(seed, 'review', 'inbox.md'),
     ['# レビュー指摘の受け取り箱', '', '## 未対応', '', '（なし）', '', '## 済', '', '- 前に直した件', ''].join('\n'),
   );
+  await writeWork(seed, 'second'); // works/second/ に置いた、もう一つの作品
   await git(['add', '-A'], seed);
   await git(['commit', '-m', '種'], seed);
   await git(['push', 'origin', 'main'], seed);
@@ -52,7 +54,10 @@ async function makeFixture(root) {
 async function startServer(root, remote) {
   const novelsFile = path.join(root, 'novels.json');
   await fs.writeFile(novelsFile, JSON.stringify({
-    novels: [{ id: 'testnovel', title: '試験作品', repo: remote, branch: 'main', push: true }],
+    novels: [
+      { id: 'testnovel', title: '試験作品', repo: remote, branch: 'main', push: true },
+      { id: 'second', title: '二つめ', repo: remote, branch: 'main', workDir: 'works/second', push: true },
+    ],
   }));
   process.env.PROOFREADING_NOVELS = novelsFile;
   process.env.PROOFREADING_DATA_DIR = path.join(root, 'data');
@@ -275,6 +280,36 @@ test('ログインから指摘の書き戻し、前後の比較まで', async (t
   await t.test('別の校正者は招待コードが要る', async () => {
     const res = await call('POST', '/api/auth/signup', { loginId: 'chino', name: '茅野', password: 'password123' });
     assert.equal(res.status, 403);
+  });
+
+  await t.test('works/ の下の作品も、目次・本文・指摘の書き戻しまで通る', async () => {
+    const toc = await call('GET', '/api/novels/second/toc');
+    assert.equal(toc.status, 200, JSON.stringify(toc.payload));
+    const chapter = toc.payload.toc.chapters[0];
+    assert.equal(chapter.label, '第一章 幌', '章題は見出しから読む');
+    const section = chapter.sections[0];
+    assert.equal(section.viewpoint, '灯');
+    assert.equal(section.summary, '灯がミシンを解体し、部室へ運ぶ。');
+    assert.equal(section.chars, 26, '字数は注を落として数える（注込みなら 46）');
+    assert.equal(section.opening, '灯はミシンを台から外した。');
+    assert.equal(toc.payload.toc.planned[0].id, 'ch1-02');
+
+    const res = await call('GET', '/api/novels/second/sections/ch1-01');
+    assert.equal(res.payload.section.text, WORK_SECTION, '本文の注は消さずに返す');
+
+    const quote = '錆の割れる音';
+    const sent = await call('POST', '/api/novels/second/annotations', {
+      sectionId: 'ch1-01', quote, start: WORK_SECTION.indexOf(quote), end: WORK_SECTION.indexOf(quote) + quote.length,
+      body: '音の擬音に頼らずに書けないか',
+    });
+    assert.equal(sent.status, 200, JSON.stringify(sent.payload));
+    assert.equal(sent.payload.annotation.start, WORK_SECTION.indexOf(quote), '注を含んだまま位置を数える');
+
+    const { stdout } = await git(['show', 'main:works/second/review/inbox.md'], remote);
+    assert.ok(stdout.startsWith('# 作者からの指摘'), '無かった受け取り箱を型紙の形で作る');
+    assert.match(stdout, /> 錆の割れる音/);
+    const root = await git(['show', 'main:review/inbox.md'], remote);
+    assert.ok(!root.stdout.includes(sent.payload.annotation.id), '直下の作品の受け取り箱には書かない');
   });
 
   await t.test('出ると読めなくなる', async () => {

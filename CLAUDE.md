@@ -21,7 +21,7 @@
 **Node 22 以上が要る**（`wrangler` が要求する。`node:sqlite` を使う試験も同じ）。
 
 ```bash
-npm test            # 57 件。git が要る。本物の原稿には触らない
+npm test            # 65 件。git が要る。本物の原稿には触らない
 npm start           # 自前サーバ版 http://localhost:8787
 npm run cf:dev      # Workers 版を手元の workerd で http://localhost:8788
 ```
@@ -35,7 +35,10 @@ npm run cf:dev      # Workers 版を手元の workerd で http://localhost:8788
   - `INVITE_CODE` … 校正者の自己登録に要る合言葉
 - `PBKDF2_ITERATIONS = 10000` … 無料枠は 1 リクエスト CPU 10ms までで、
   既定の 100000 だと**ログインだけが落ちる**。上げるなら Workers Paid にしてから
-- 読んでいる原稿は `tsco23/novel1`（private）の `claude/novel-writing-constraints-wuury5`
+- 読んでいる原稿は `tsco23/novel1`（private）の `claude/novel-writing-constraints-wuury5`、
+  その中の **`works/tozan/`**（作品 id `tozan`）。
+  旧作品は id `novel1` だった。書き直しで本文が別物になったので id を分けた。
+  **D1 には `novel1` の指摘・しおりが残っているが、画面には出ない**（消してはいない）
 
 ## クラウドセッションで続きをやるとき
 
@@ -70,6 +73,17 @@ CLOUDFLARE_API_TOKEN=... npx wrangler d1 execute proofreading --remote \
 
 ## つまずきやすいところ
 
+- **原稿リポジトリは一つの中に作品を複数持つ**（`works/<作品>/…`、今の作品は `work.toml` が指す）。
+  設定の `workDir` に作品の根を書くと、原稿・構成・節・受け取り箱の置き場がすべてその下になる
+  （`applyWorkDir()`／`shared/novel.js`）。作品を足すときは `NOVELS` に一件足す。
+  **id は作品ごとに変える**（同じ id だと、別の作品の指摘が同じ節番号に付いてしまう）
+- **本文の注（`<!-- @b1 -->` などのビートの印や覚え書き）は消さない。**校正に使う。
+  画面では `span.ms-note` で薄く見せるだけで、字はそのまま（指摘の文字位置もずれない）。
+  **字数と目次の冒頭文だけは注を落として数える**（`stripNotes()`。作者の道具の strip と同じ規則。
+  ch1-01 で 4,061 字と一致を確かめた）。`.note` は指摘一覧の札の名前なので使わない
+- 章題は `# 第一章　幌` の見出しから読む（旧い表の形も読む）。節の設計は一欄一行
+  （`- **視点** 灯`）で、**出来事**は字下げで続く。「（設計に無い）」はあらすじに混ぜない
+- 受け取り箱（`review/inbox.md`）が無い作品では、**最初の指摘で型紙と同じ形に作る**
 - **Windows の改行**。`core.autocrlf=true` のままだと作業コピーが CRLF になり、
   git の中身（LF）とずれて文字位置が 1 行ごとに狂う。作業コピーは
   `core.autocrlf=false` を焼き付けてクローンしている（`server/git.js`）

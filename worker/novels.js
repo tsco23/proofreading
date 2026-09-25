@@ -1,4 +1,5 @@
 /** 作品の設定。wrangler.toml の vars.NOVELS（JSON 文字列）から読む。 */
+import { applyWorkDir } from '../shared/novel.js';
 
 const DEFAULTS = {
   branch: 'main',
@@ -28,7 +29,7 @@ export function loadNovels(env) {
     if (!item.id || !/^[A-Za-z0-9._-]+$/.test(item.id)) {
       throw new Error(`作品の id が不正です: ${JSON.stringify(item.id)}`);
     }
-    return { ...DEFAULTS, ...item, ...parseRepo(item), title: item.title || item.id };
+    return applyWorkDir({ ...DEFAULTS, ...item, ...parseRepo(item), title: item.title || item.id });
   });
 }
 
