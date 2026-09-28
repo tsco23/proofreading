@@ -1,4 +1,3 @@
-import { loadNovels } from './config.js';
 import * as git from './git.js';
 import * as novelLib from './novel.js';
 
@@ -42,7 +41,8 @@ export async function prepare(novel, { force = false } = {}) {
 
 /** ロックを取ってから prepare する。外から呼ぶのはこちら。 */
 export function ensureReady(novel, opts) {
-  return git.withRepoLock(novel.id, () => prepare(novel, opts));
+  // 鍵は作業コピー。置き場の下の作品は一つの作業コピーを分け合うので
+  return git.withRepoLock(novel.workdir, () => prepare(novel, opts));
 }
 
 /** 書き込んだ直後に目次と HEAD を取り直す（ロックの中から呼ぶ）。 */
@@ -57,8 +57,4 @@ export async function refresh(novel) {
 
 export function status(novel) {
   return slot(novel);
-}
-
-export function novels() {
-  return loadNovels();
 }

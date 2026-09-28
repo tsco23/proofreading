@@ -7,7 +7,7 @@ import { diffTexts, locateQuote, relocateAll } from '../shared/diff.js';
 import { hashPassword, verifyPassword, DUMMY_HASH } from '../shared/password.js';
 import * as db from './db.js';
 import * as repo from './repo.js';
-import { getNovel, loadNovels } from './novels.js';
+import { getNovel, listNovels } from './novels.js';
 import { GitHubError } from './github.js';
 
 export class HttpError extends Error {
@@ -25,8 +25,8 @@ function requireUser(ctx) {
   return ctx.user;
 }
 
-function requireNovel(ctx) {
-  const novel = getNovel(ctx.env, ctx.params.novelId);
+async function requireNovel(ctx) {
+  const novel = await getNovel(ctx.env, ctx.gh, ctx.params.novelId);
   if (!novel) throw new HttpError(404, `作品が見つかりません: ${ctx.params.novelId}`);
   return novel;
 }
@@ -139,7 +139,7 @@ export const routes = [
   ['GET', '/api/novels', async (ctx) => {
     const user = requireUser(ctx);
     const out = [];
-    for (const novel of loadNovels(ctx.env)) {
+    for (const novel of await listNovels(ctx.env, ctx.gh, { fresh: ctx.query.get('sync') === '1' })) {
       const [position, bookmarks] = await Promise.all([
         db.getPosition(ctx.db, user.id, novel.id),
         db.countBookmarks(ctx.db, user.id, novel.id),
@@ -172,7 +172,7 @@ export const routes = [
 
   ['GET', '/api/novels/:novelId/toc', async (ctx) => {
     requireUser(ctx);
-    const novel = requireNovel(ctx);
+    const novel = await requireNovel(ctx);
     const fresh = ctx.query.get('sync') === '1';
     const built = await repo.toc(ctx.db, ctx.gh, novel, { fresh });
     const annotations = await annotationsWithStatus(ctx, novel, {});
@@ -201,7 +201,7 @@ export const routes = [
 
   ['POST', '/api/novels/:novelId/sync', async (ctx) => {
     requireUser(ctx);
-    const novel = requireNovel(ctx);
+    const novel = await requireNovel(ctx);
     await repo.invalidate(ctx.db, novel);
     const built = await repo.toc(ctx.db, ctx.gh, novel, { fresh: true });
     return { head: built.head, lastSync: Date.now(), error: null };
@@ -209,7 +209,7 @@ export const routes = [
 
   ['GET', '/api/novels/:novelId/sections/:sectionId', async (ctx) => {
     const user = requireUser(ctx);
-    const novel = requireNovel(ctx);
+    const novel = await requireNovel(ctx);
     const sectionId = requireSectionId(ctx.params.sectionId);
     const built = await repo.toc(ctx.db, ctx.gh, novel);
     const section = await repo.section(ctx.gh, novel, sectionId, built.toc, built.head);
@@ -228,13 +228,13 @@ export const routes = [
 
   ['GET', '/api/novels/:novelId/inbox', async (ctx) => {
     requireUser(ctx);
-    const novel = requireNovel(ctx);
+    const novel = await requireNovel(ctx);
     return { path: novel.inboxPath, text: (await repo.readInbox(ctx.gh, novel)) || '' };
   }],
 
   ['GET', '/api/novels/:novelId/annotations', async (ctx) => {
     const user = requireUser(ctx);
-    const novel = requireNovel(ctx);
+    const novel = await requireNovel(ctx);
     const filter = {};
     if (ctx.query.get('section')) filter.sectionId = ctx.query.get('section');
     if (ctx.query.get('mine') === '1') filter.userId = user.id;
@@ -243,7 +243,7 @@ export const routes = [
 
   ['POST', '/api/novels/:novelId/annotations', async (ctx) => {
     const user = requireUser(ctx);
-    const novel = requireNovel(ctx);
+    const novel = await requireNovel(ctx);
     const { sectionId, quote = '', body = '', start = null, end = null } = ctx.body || {};
     requireSectionId(sectionId);
     const text = String(body).trim();
@@ -308,7 +308,7 @@ export const routes = [
 
   ['GET', '/api/novels/:novelId/annotations/:annotationId/compare', async (ctx) => {
     requireUser(ctx);
-    const novel = requireNovel(ctx);
+    const novel = await requireNovel(ctx);
     const ann = await db.getAnnotation(ctx.db, novel.id, ctx.params.annotationId);
     if (!ann) throw new HttpError(404, '指摘が見つかりません');
 
@@ -338,7 +338,7 @@ export const routes = [
 
   ['GET', '/api/novels/:novelId/sections/:sectionId/compare', async (ctx) => {
     requireUser(ctx);
-    const novel = requireNovel(ctx);
+    const novel = await requireNovel(ctx);
     const sectionId = requireSectionId(ctx.params.sectionId);
     const from = ctx.query.get('from');
     const to = ctx.query.get('to') || 'HEAD';
@@ -354,14 +354,14 @@ export const routes = [
 
   ['GET', '/api/novels/:novelId/sections/:sectionId/history', async (ctx) => {
     requireUser(ctx);
-    const novel = requireNovel(ctx);
+    const novel = await requireNovel(ctx);
     const sectionId = requireSectionId(ctx.params.sectionId);
     return { history: await ctx.gh.commitsFor(novel, sectionPath(novel, sectionId), 30) };
   }],
 
   ['GET', '/api/state/:novelId', async (ctx) => {
     const user = requireUser(ctx);
-    const novel = requireNovel(ctx);
+    const novel = await requireNovel(ctx);
     const [position, bookmarks] = await Promise.all([
       db.getPosition(ctx.db, user.id, novel.id),
       db.listBookmarks(ctx.db, user.id, novel.id),
@@ -371,7 +371,7 @@ export const routes = [
 
   ['PUT', '/api/state/:novelId/position', async (ctx) => {
     const user = requireUser(ctx);
-    const novel = requireNovel(ctx);
+    const novel = await requireNovel(ctx);
     const { sectionId, offset = 0, percent = 0 } = ctx.body || {};
     requireSectionId(sectionId);
     const position = {
@@ -386,7 +386,7 @@ export const routes = [
 
   ['POST', '/api/state/:novelId/bookmarks', async (ctx) => {
     const user = requireUser(ctx);
-    const novel = requireNovel(ctx);
+    const novel = await requireNovel(ctx);
     const { sectionId, offset = 0, quote = '', note = '' } = ctx.body || {};
     requireSectionId(sectionId);
     const bookmark = {
@@ -403,7 +403,7 @@ export const routes = [
 
   ['DELETE', '/api/state/:novelId/bookmarks/:bookmarkId', async (ctx) => {
     const user = requireUser(ctx);
-    const novel = requireNovel(ctx);
+    const novel = await requireNovel(ctx);
     await db.deleteBookmark(ctx.db, user.id, novel.id, ctx.params.bookmarkId);
     return { ok: true };
   }],

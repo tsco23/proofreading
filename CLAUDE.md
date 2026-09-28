@@ -21,7 +21,7 @@
 **Node 22 以上が要る**（`wrangler` が要求する。`node:sqlite` を使う試験も同じ）。
 
 ```bash
-npm test            # 65 件。git が要る。本物の原稿には触らない
+npm test            # 71 件。git が要る。本物の原稿には触らない
 npm start           # 自前サーバ版 http://localhost:8787
 npm run cf:dev      # Workers 版を手元の workerd で http://localhost:8788
 ```
@@ -35,11 +35,10 @@ npm run cf:dev      # Workers 版を手元の workerd で http://localhost:8788
   - `INVITE_CODE` … 校正者の自己登録に要る合言葉
 - `PBKDF2_ITERATIONS = 10000` … 無料枠は 1 リクエスト CPU 10ms までで、
   既定の 100000 だと**ログインだけが落ちる**。上げるなら Workers Paid にしてから
-- 読んでいる原稿は `tsco23/novel1`（private）の `claude/novel-writing-constraints-wuury5`。
-  その中の三作品を登録してある：**`works/tozan/`**（id `tozan`）・**`works/hachinin/`**（id `hachinin`）・
-  **`works/nazo/`**（id `nazo`。2026-09-28 時点で本文なし）。
-  **原稿側で作品を増やしても、ここに登録するまで一覧に出ない。**題は原稿側に作品ごとの欄が無いので、
-  `work.toml` の題か、`input.toml` の題材から仮に付けてある
+- 読んでいる原稿は `tsco23/novel1`（private）の `claude/novel-writing-constraints-wuury5` の **`works/` の下すべて**。
+  設定（`NOVELS`）には置き場（`worksDir`）だけを書いてあり、作品は原稿側から**自動で拾う**。
+  **原稿側で作品を増やしても、アプリは書き換えなくてよい。**id はフォルダ名
+  （`tozan`・`hachinin`・`nazo`）。今書いている作品（`work.toml`）が一覧の先頭に来る
   旧作品は id `novel1` だった。書き直しで本文が別物になったので id を分けた。
   **D1 には `novel1` の指摘・しおりが残っているが、画面には出ない**（消してはいない）
 
@@ -77,9 +76,14 @@ CLOUDFLARE_API_TOKEN=... npx wrangler d1 execute proofreading --remote \
 ## つまずきやすいところ
 
 - **原稿リポジトリは一つの中に作品を複数持つ**（`works/<作品>/…`、今の作品は `work.toml` が指す）。
-  設定の `workDir` に作品の根を書くと、原稿・構成・節・受け取り箱の置き場がすべてその下になる
-  （`applyWorkDir()`／`shared/novel.js`）。作品を足すときは `NOVELS` に一件足す。
-  **id は作品ごとに変える**（同じ id だと、別の作品の指摘が同じ節番号に付いてしまう）
+  設定に `worksDir` を書くと、その下で `manuscript/` か `outline/` を持つ場所を**すべて作品として拾う**
+  （`shared/works.js`）。作品ごとの原稿・構成・節・受け取り箱はその作品の根の下（`applyWorkDir()`）。
+  **id はフォルダ名。フォルダ名を変えると別の作品になる**（指摘やしおりは付いてこない）
+- **題は原稿側に欄が無かった。**`works/<作品>/input.toml` の `"題"` の一行を読む。
+  無ければ `work.toml` の題（今の作品のとき）、`input.toml` の題材、フォルダ名の順。
+  原稿側の道具は input.toml から決まった欄しか読まないので、`"題"` を足しても差し支えない
+- 増やした直後の作品も開けるよう、**見つからない id を頼まれたら一度だけ取り直す**。
+  Workers 版は先端と木を 15 秒覚えているので、一覧に出るまで最大それくらい遅れる
 - **本文の注（`<!-- @b1 -->` などのビートの印や覚え書き）は消さない。**校正に使う。
   画面では `span.ms-note` で薄く見せるだけで、字はそのまま（指摘の文字位置もずれない）。
   **字数と目次の冒頭文だけは注を落として数える**（`stripNotes()`。作者の道具の strip と同じ規則。

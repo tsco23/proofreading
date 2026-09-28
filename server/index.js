@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { PORT, HOST, PUBLIC_DIR, DATA_DIR, loadNovels, configPath } from './config.js';
+import { PORT, HOST, PUBLIC_DIR, DATA_DIR, configPath } from './config.js';
+import { listNovels } from './library.js';
 import * as auth from './auth.js';
 import * as ws from './workspace.js';
 import { routes, HttpError } from './api.js';
@@ -178,20 +179,23 @@ const server = http.createServer((req, res) => {
 
 async function main() {
   await fsp.mkdir(DATA_DIR, { recursive: true });
-  const novels = loadNovels();
   console.log(`設定: ${configPath()}`);
-  console.log(`作品: ${novels.map((n) => `${n.id}(${n.branch})`).join(', ') || 'なし'}`);
 
   server.listen(PORT, HOST, () => {
     console.log(`校正アプリを http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT} で待ち受けます`);
   });
 
-  // クローンは起動を止めずに裏で用意する
-  for (const novel of novels) {
-    ws.ensureReady(novel)
-      .then((s) => console.log(`[${novel.id}] 準備できました HEAD=${s.head?.slice(0, 8)} 節=${s.toc?.sections.length ?? 0}`))
-      .catch((err) => console.error(`[${novel.id}] 準備できませんでした: ${err.message}`));
-  }
+  // クローンと作品の拾い出しは、起動を止めずに裏で済ませる
+  listNovels()
+    .then((novels) => {
+      console.log(`作品: ${novels.map((n) => `${n.id}(${n.branch})`).join(', ') || 'なし'}`);
+      for (const novel of novels) {
+        ws.ensureReady(novel)
+          .then((s) => console.log(`[${novel.id}] 準備できました HEAD=${s.head?.slice(0, 8)} 節=${s.toc?.sections.length ?? 0}`))
+          .catch((err) => console.error(`[${novel.id}] 準備できませんでした: ${err.message}`));
+      }
+    })
+    .catch((err) => console.error(`作品を拾えませんでした: ${err.message}`));
 }
 
 for (const signal of ['SIGINT', 'SIGTERM']) {

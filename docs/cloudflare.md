@@ -55,12 +55,13 @@ GitHub → Settings → Developer settings → **Fine-grained personal access to
 npm run cf:secret           # wrangler secret put GITHUB_TOKEN
 ```
 
-### 3. 作品を登録する
+### 3. 作品の置き場を登録する
 
-`wrangler.toml` の `vars.NOVELS` に JSON で書く。増やすときはここに足して deploy し直す。
+`wrangler.toml` の `vars.NOVELS` に JSON で書く。`worksDir` を書けば、その下の作品を自動で拾うので、
+**原稿側で作品を増やしてもここは書き換えなくてよい。**題は各作品の `input.toml` の `"題"`。
 
 ```toml
-NOVELS = '{"novels":[{"id":"tozan","title":"（未定）高校山岳部・インターハイ登山競技","repo":"https://github.com/tsco23/novel1","branch":"claude/novel-writing-constraints-wuury5","workDir":"works/tozan"}]}'
+NOVELS = '{"novels":[{"repo":"https://github.com/tsco23/novel1","branch":"claude/novel-writing-constraints-wuury5","worksDir":"works"}]}'
 ```
 
 `workDir` はリポジトリの中の作品の根。`manuscriptDir` `inboxPath` `structurePath` `sectionsPath` は

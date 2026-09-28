@@ -39,13 +39,16 @@ export function git(args, { cwd, input } = {}) {
   });
 }
 
-/** 作品ごとに git 操作を直列化する。同時に 2 つコミットが走ると壊れるため。 */
+/**
+ * 作業コピーごとに git 操作を直列化する。同時に 2 つコミットが走ると壊れるため。
+ * 鍵は作業コピーの場所（置き場の下の作品は一つの作業コピーを分け合う）。
+ */
 const locks = new Map();
 
-export function withRepoLock(novelId, fn) {
-  const prev = locks.get(novelId) || Promise.resolve();
+export function withRepoLock(key, fn) {
+  const prev = locks.get(key) || Promise.resolve();
   const next = prev.then(fn, fn);
-  locks.set(novelId, next.then(() => undefined, () => undefined));
+  locks.set(key, next.then(() => undefined, () => undefined));
   return next;
 }
 

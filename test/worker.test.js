@@ -57,7 +57,8 @@ test('Workers 版：ログインから指摘の書き戻し、前後の比較ま
     NOVELS: JSON.stringify({
       novels: [
         { id: 'novel1', title: '試験作品', repo: 'https://github.com/tsco23/novel1', branch: BRANCH },
-        { id: 'second', title: '二つめ', repo: 'https://github.com/tsco23/novel1', branch: BRANCH, workDir: 'works/second' },
+        // 置き場ごと見る設定。works/ の下の作品は拾ってくる
+        { repo: 'https://github.com/tsco23/novel1', branch: BRANCH, worksDir: 'works' },
       ],
     }),
     SECURE_COOKIE: '0',
@@ -358,6 +359,30 @@ test('Workers 版：ログインから指摘の書き戻し、前後の比較ま
     assert.match(stdout, /> 錆の割れる音/);
     const root = await run('git', ['show', `${BRANCH}:review/inbox.md`], { cwd: workdir });
     assert.ok(!root.stdout.includes(sent.payload.annotation.id), '直下の作品の受け取り箱には書かない');
+  });
+
+  await t.test('原稿側で作品を増やせば、設定を変えずに一覧に出る', async () => {
+    const before = await call('GET', '/api/novels');
+    assert.ok(!before.payload.novels.some((n) => n.id === 'third'));
+
+    const root = await writeWork(workdir, 'third');
+    await fs.writeFile(path.join(root, 'input.toml'), '"題材" = "三つめ"\n"題" = "三つめの作品"\n');
+    await run('git', ['add', '-A'], { cwd: workdir });
+    await run('git', ['commit', '-m', '作品を増やす'], { cwd: workdir });
+
+    const after = await call('GET', '/api/novels?sync=1');
+    const third = after.payload.novels.find((n) => n.id === 'third');
+    assert.ok(third, '増やした作品が一覧に出る');
+    assert.equal(third.title, '三つめの作品', '題は input.toml の「題」から');
+
+    // 一覧を経ずに直接開いても、見つからなければ取り直して開ける
+    await fs.writeFile(path.join(workdir, 'works', 'third', 'manuscript', 'ch1', 'ch1-02.md'), '　二節目。\n');
+    const root4 = await writeWork(workdir, 'fourth');
+    await run('git', ['add', '-A'], { cwd: workdir });
+    await run('git', ['commit', '-m', 'もう一つ増やす'], { cwd: workdir });
+    const toc = await call('GET', '/api/novels/fourth/toc');
+    assert.equal(toc.status, 200, JSON.stringify(toc.payload));
+    assert.ok(root4);
   });
 
   await t.test('出ると読めなくなる', async () => {

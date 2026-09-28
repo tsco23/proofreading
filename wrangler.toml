@@ -26,9 +26,11 @@ database_name = "proofreading"
 database_id = "71966a46-113f-4ed2-9763-3e9a4bea8283"
 
 [vars]
-# 作品の登録。増やすときはこの配列に足して push する（Workers Builds が出し直す）
-# workDir … 原稿リポジトリの中の作品の根。置き場の指定はどれもここからの相対になる
-NOVELS = '{"novels":[{"id":"tozan","title":"（未定）高校山岳部・インターハイ登山競技","repo":"https://github.com/tsco23/novel1","branch":"claude/novel-writing-constraints-wuury5","workDir":"works/tozan"},{"id":"hachinin","title":"（未定）小学校の同級生八人・夏のシリーズ","repo":"https://github.com/tsco23/novel1","branch":"claude/novel-writing-constraints-wuury5","workDir":"works/hachinin"},{"id":"nazo","title":"（未定）日常の謎ミステリ","repo":"https://github.com/tsco23/novel1","branch":"claude/novel-writing-constraints-wuury5","workDir":"works/nazo"}]}'
+# 作品の置き場。worksDir を書くと、その下の作品を原稿リポジトリから自動で拾う。
+# **原稿側で作品を増やしても、ここは書き換えなくてよい。**
+# 題は works/<作品>/input.toml の "題" の一行（無ければ work.toml の題、題材の順）。
+# 一作品だけを名指しで足すときは { "id": …, "workDir": "works/…", … } の形も使える
+NOVELS = '{"novels":[{"repo":"https://github.com/tsco23/novel1","branch":"claude/novel-writing-constraints-wuury5","worksDir":"works"}]}'
 
 # ログインを保つ日数
 SESSION_DAYS = "30"

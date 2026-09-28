@@ -61,25 +61,49 @@ function normalize(raw, file) {
   return novel;
 }
 
+/**
+ * 置き場（works/ の下を丸ごと見る設定）。作品は server/library.js が拾う。
+ * 作業コピーは置き場ごとに一つ。その下の作品はみな同じ作業コピーを使う。
+ */
+function normalizeLibrary(raw, file) {
+  if (!raw.repo && !raw.localPath) {
+    throw new Error(`${file}: 置き場（worksDir）に repo か localPath のどちらかが要ります`);
+  }
+  const lib = { ...DEFAULTS, ...raw };
+  const name = `${String(lib.repo || lib.localPath).replace(/\.git$/, '').split(/[/:]/).pop()}@${lib.branch}`;
+  lib.id = `lib-${name.replace(/[^A-Za-z0-9._-]+/g, '-')}`;
+  if (lib.localPath) lib.localPath = path.resolve(ROOT, lib.localPath);
+  lib.workdir = lib.localPath || path.join(WORKSPACE_DIR, lib.id);
+  return lib;
+}
+
 let cache = null;
 
-export function loadNovels({ reload = false } = {}) {
+/** 設定を「作品」と「置き場」に分けて読む。 */
+export function loadConfig({ reload = false } = {}) {
   if (cache && !reload) return cache;
   const file = configFile();
   const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
   const list = Array.isArray(parsed) ? parsed : parsed.novels;
   if (!Array.isArray(list)) throw new Error(`${file}: novels 配列が見つかりません`);
-  cache = list.map((raw) => normalize(raw, file));
+  const novels = [];
+  const libraries = [];
+  for (const raw of list) {
+    if (raw.worksDir && !raw.id) libraries.push(normalizeLibrary(raw, file));
+    else novels.push(normalize(raw, file));
+  }
   const ids = new Set();
-  for (const n of cache) {
+  for (const n of novels) {
     if (ids.has(n.id)) throw new Error(`${file}: id が重複しています: ${n.id}`);
     ids.add(n.id);
   }
+  cache = { novels, libraries };
   return cache;
 }
 
-export function getNovel(id) {
-  return loadNovels().find((n) => n.id === id) || null;
+/** 明示した作品だけ（置き場から拾う作品は server/library.js の listNovels）。 */
+export function loadNovels(opts) {
+  return loadConfig(opts).novels;
 }
 
 export function configPath() {

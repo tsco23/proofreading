@@ -1,6 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { getNovel, loadNovels, INVITE_CODE, SESSION_TTL_MS, APP_VERSION } from './config.js';
+import { INVITE_CODE, SESSION_TTL_MS, APP_VERSION } from './config.js';
+import { getNovel, listNovels } from './library.js';
 import * as auth from './auth.js';
 import * as git from './git.js';
 import * as novelLib from './novel.js';
@@ -19,8 +20,8 @@ export class HttpError extends Error {
 const MAX_BODY_CHARS = 4000;
 const MAX_QUOTE_CHARS = 400;
 
-function requireNovel(id) {
-  const novel = getNovel(id);
+async function requireNovel(id) {
+  const novel = await getNovel(id);
   if (!novel) throw new HttpError(404, `作品が見つかりません: ${id}`);
   return novel;
 }
@@ -110,7 +111,7 @@ export const routes = [
   // ---------- 作品 ----------
   ['GET', '/api/novels', async (ctx) => {
     requireUser(ctx);
-    const list = loadNovels();
+    const list = await listNovels({ fresh: ctx.query.get('sync') === '1' });
     const state = await readerState.read();
     const out = [];
     for (const novel of list) {
@@ -135,7 +136,7 @@ export const routes = [
 
   ['GET', '/api/novels/:novelId/toc', async (ctx) => {
     requireUser(ctx);
-    const novel = requireNovel(ctx.params.novelId);
+    const novel = await requireNovel(ctx.params.novelId);
     const s = await ws.ensureReady(novel, { force: ctx.query.get('sync') === '1' });
     const marks = novelLib.parseInboxMarkers(await novelLib.readInbox(novel));
     const mine = await annotationsFor(novel, {});
@@ -164,14 +165,14 @@ export const routes = [
 
   ['POST', '/api/novels/:novelId/sync', async (ctx) => {
     requireUser(ctx);
-    const novel = requireNovel(ctx.params.novelId);
+    const novel = await requireNovel(ctx.params.novelId);
     const s = await ws.ensureReady(novel, { force: true });
     return { head: s.head, lastSync: s.lastSync, error: s.error };
   }],
 
   ['GET', '/api/novels/:novelId/sections/:sectionId', async (ctx) => {
     requireUser(ctx);
-    const novel = requireNovel(ctx.params.novelId);
+    const novel = await requireNovel(ctx.params.novelId);
     const { sectionId } = ctx.params;
     if (!novelLib.isSectionId(sectionId)) throw new HttpError(400, '節 ID が不正です');
     const s = await ws.ensureReady(novel);
@@ -190,7 +191,7 @@ export const routes = [
 
   ['GET', '/api/novels/:novelId/inbox', async (ctx) => {
     requireUser(ctx);
-    const novel = requireNovel(ctx.params.novelId);
+    const novel = await requireNovel(ctx.params.novelId);
     await ws.ensureReady(novel);
     return { path: novel.inboxPath, text: (await novelLib.readInbox(novel)) || '' };
   }],
@@ -198,7 +199,7 @@ export const routes = [
   // ---------- 指摘 ----------
   ['GET', '/api/novels/:novelId/annotations', async (ctx) => {
     requireUser(ctx);
-    const novel = requireNovel(ctx.params.novelId);
+    const novel = await requireNovel(ctx.params.novelId);
     await ws.ensureReady(novel);
     const sectionId = ctx.query.get('section') || undefined;
     const mine = ctx.query.get('mine') === '1' ? ctx.user.id : undefined;
@@ -207,7 +208,7 @@ export const routes = [
 
   ['POST', '/api/novels/:novelId/annotations', async (ctx) => {
     const user = requireUser(ctx);
-    const novel = requireNovel(ctx.params.novelId);
+    const novel = await requireNovel(ctx.params.novelId);
     const { sectionId, quote = '', body = '', start = null, end = null } = ctx.body || {};
     if (!novelLib.isSectionId(sectionId)) throw new HttpError(400, '節 ID が不正です');
     const text = String(body).trim();
@@ -215,7 +216,7 @@ export const routes = [
     if (text.length > MAX_BODY_CHARS) throw new HttpError(400, `指摘は ${MAX_BODY_CHARS} 字までです`);
     if (String(quote).length > MAX_QUOTE_CHARS) throw new HttpError(400, `引用は ${MAX_QUOTE_CHARS} 字までです`);
 
-    return git.withRepoLock(novel.id, async () => {
+    return git.withRepoLock(novel.workdir, async () => {
       const s = await ws.prepare(novel, { force: true });
       const entry = novelLib.findSection(s.toc, sectionId);
       if (!entry) throw new HttpError(404, `本文が見つかりません: ${sectionId}`);
@@ -271,7 +272,7 @@ export const routes = [
   /** 指摘を付けた時点の本文と、いまの本文を突き合わせる。 */
   ['GET', '/api/novels/:novelId/annotations/:annotationId/compare', async (ctx) => {
     requireUser(ctx);
-    const novel = requireNovel(ctx.params.novelId);
+    const novel = await requireNovel(ctx.params.novelId);
     await ws.ensureReady(novel);
     const data = await annotations.read();
     const ann = data.annotations.find((a) => a.id === ctx.params.annotationId && a.novelId === novel.id);
@@ -302,7 +303,7 @@ export const routes = [
   /** 任意の 2 つの版を突き合わせる（版を選んで比べたいとき）。 */
   ['GET', '/api/novels/:novelId/sections/:sectionId/compare', async (ctx) => {
     requireUser(ctx);
-    const novel = requireNovel(ctx.params.novelId);
+    const novel = await requireNovel(ctx.params.novelId);
     const { sectionId } = ctx.params;
     if (!novelLib.isSectionId(sectionId)) throw new HttpError(400, '節 ID が不正です');
     await ws.ensureReady(novel);
@@ -320,7 +321,7 @@ export const routes = [
 
   ['GET', '/api/novels/:novelId/sections/:sectionId/history', async (ctx) => {
     requireUser(ctx);
-    const novel = requireNovel(ctx.params.novelId);
+    const novel = await requireNovel(ctx.params.novelId);
     const { sectionId } = ctx.params;
     if (!novelLib.isSectionId(sectionId)) throw new HttpError(400, '節 ID が不正です');
     await ws.ensureReady(novel);
@@ -330,7 +331,7 @@ export const routes = [
   // ---------- しおりと読みかけ ----------
   ['GET', '/api/state/:novelId', async (ctx) => {
     const user = requireUser(ctx);
-    const novel = requireNovel(ctx.params.novelId);
+    const novel = await requireNovel(ctx.params.novelId);
     const data = await readerState.read();
     const slot = data.byUser?.[user.id]?.[novel.id] || { position: null, bookmarks: [] };
     return { position: slot.position, bookmarks: slot.bookmarks };
@@ -338,7 +339,7 @@ export const routes = [
 
   ['PUT', '/api/state/:novelId/position', async (ctx) => {
     const user = requireUser(ctx);
-    const novel = requireNovel(ctx.params.novelId);
+    const novel = await requireNovel(ctx.params.novelId);
     const { sectionId, offset = 0, percent = 0 } = ctx.body || {};
     if (!novelLib.isSectionId(sectionId)) throw new HttpError(400, '節 ID が不正です');
     const position = {
@@ -355,7 +356,7 @@ export const routes = [
 
   ['POST', '/api/state/:novelId/bookmarks', async (ctx) => {
     const user = requireUser(ctx);
-    const novel = requireNovel(ctx.params.novelId);
+    const novel = await requireNovel(ctx.params.novelId);
     const { sectionId, offset = 0, quote = '', note = '' } = ctx.body || {};
     if (!novelLib.isSectionId(sectionId)) throw new HttpError(400, '節 ID が不正です');
     const bookmark = {
@@ -376,7 +377,7 @@ export const routes = [
 
   ['DELETE', '/api/state/:novelId/bookmarks/:bookmarkId', async (ctx) => {
     const user = requireUser(ctx);
-    const novel = requireNovel(ctx.params.novelId);
+    const novel = await requireNovel(ctx.params.novelId);
     await readerState.update((data) => {
       const slot = userSlot(data, user.id, novel.id);
       slot.bookmarks = slot.bookmarks.filter((b) => b.id !== ctx.params.bookmarkId);

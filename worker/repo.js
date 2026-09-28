@@ -10,19 +10,26 @@ const HEAD_TTL = 15_000;
 const TREE_TTL = 15_000;
 const TEXT_TTL = 5 * 60_000;
 
+/**
+ * 覚え書きの鍵は、作品ではなく「リポジトリ」で取る。
+ * 一つのリポジトリに作品が並ぶので、先端も木も blob も作品どうしで使い回せる。
+ */
+const repoKey = (novel) => `${novel.owner}/${novel.repo}`;
+
 export async function head(gh, novel, { fresh = false } = {}) {
-  if (fresh) forget(`head:${novel.id}`);
-  return remember(`head:${novel.id}`, HEAD_TTL, () => gh.headSha(novel));
+  const key = `head:${repoKey(novel)}@${novel.branch}`;
+  if (fresh) forget(key);
+  return remember(key, HEAD_TTL, () => gh.headSha(novel));
 }
 
-async function tree(gh, novel, sha, { fresh = false } = {}) {
-  if (fresh) forget(`tree:${novel.id}`);
-  return remember(`tree:${novel.id}:${sha}`, TREE_TTL, () => gh.tree(novel, sha));
+export async function tree(gh, novel, sha, { fresh = false } = {}) {
+  if (fresh) forget(`tree:${repoKey(novel)}:`);
+  return remember(`tree:${repoKey(novel)}:${sha}`, TREE_TTL, () => gh.tree(novel, sha));
 }
 
 /** blob は sha で決まるので、いくらでも取っておける。 */
-function blobText(gh, novel, sha) {
-  return remember(`blob:${novel.id}:${sha}`, TEXT_TTL, () => gh.blobText(novel, sha));
+export function blobText(gh, novel, sha) {
+  return remember(`blob:${repoKey(novel)}:${sha}`, TEXT_TTL, () => gh.blobText(novel, sha));
 }
 
 /** 手当たり次第に並べず、少しずつ取る（GitHub に嫌われないため）。 */
@@ -113,8 +120,8 @@ export function readInbox(gh, novel, ref) {
 }
 
 export async function invalidate(db, novel) {
-  forget(`head:${novel.id}`);
-  forget(`tree:${novel.id}`);
+  forget(`head:${repoKey(novel)}@`);
+  forget(`tree:${repoKey(novel)}:`);
   await clearTocCache(db, novel.id);
 }
 
