@@ -35,8 +35,11 @@ npm run cf:dev      # Workers 版を手元の workerd で http://localhost:8788
   - `INVITE_CODE` … 校正者の自己登録に要る合言葉
 - `PBKDF2_ITERATIONS = 10000` … 無料枠は 1 リクエスト CPU 10ms までで、
   既定の 100000 だと**ログインだけが落ちる**。上げるなら Workers Paid にしてから
-- 読んでいる原稿は `tsco23/novel1`（private）の `claude/novel-writing-constraints-wuury5`、
-  その中の **`works/tozan/`**（作品 id `tozan`）。
+- 読んでいる原稿は `tsco23/novel1`（private）の `claude/novel-writing-constraints-wuury5`。
+  その中の三作品を登録してある：**`works/tozan/`**（id `tozan`）・**`works/hachinin/`**（id `hachinin`）・
+  **`works/nazo/`**（id `nazo`。2026-09-28 時点で本文なし）。
+  **原稿側で作品を増やしても、ここに登録するまで一覧に出ない。**題は原稿側に作品ごとの欄が無いので、
+  `work.toml` の題か、`input.toml` の題材から仮に付けてある
   旧作品は id `novel1` だった。書き直しで本文が別物になったので id を分けた。
   **D1 には `novel1` の指摘・しおりが残っているが、画面には出ない**（消してはいない）
 

@@ -7,6 +7,22 @@
       "branch": "claude/novel-writing-constraints-wuury5",
       "workDir": "works/tozan",
       "push": true
+    },
+    {
+      "id": "hachinin",
+      "title": "（未定）小学校の同級生八人・夏のシリーズ",
+      "repo": "https://github.com/tsco23/novel1",
+      "branch": "claude/novel-writing-constraints-wuury5",
+      "workDir": "works/hachinin",
+      "push": true
+    },
+    {
+      "id": "nazo",
+      "title": "（未定）日常の謎ミステリ",
+      "repo": "https://github.com/tsco23/novel1",
+      "branch": "claude/novel-writing-constraints-wuury5",
+      "workDir": "works/nazo",
+      "push": true
     }
   ]
 }
