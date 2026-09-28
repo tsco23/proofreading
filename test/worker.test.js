@@ -366,14 +366,17 @@ test('Workers 版：ログインから指摘の書き戻し、前後の比較ま
     assert.ok(!before.payload.novels.some((n) => n.id === 'third'));
 
     const root = await writeWork(workdir, 'third');
-    await fs.writeFile(path.join(root, 'input.toml'), '"題材" = "三つめ"\n"題" = "三つめの作品"\n');
+    await fs.writeFile(path.join(root, 'input.toml'), '"題材" = "三つめ"\n"題" = "三つめの作品"\n"シリーズ" = "三部作"\n');
     await run('git', ['add', '-A'], { cwd: workdir });
     await run('git', ['commit', '-m', '作品を増やす'], { cwd: workdir });
 
     const after = await call('GET', '/api/novels?sync=1');
     const third = after.payload.novels.find((n) => n.id === 'third');
     assert.ok(third, '増やした作品が一覧に出る');
-    assert.equal(third.title, '三つめの作品', '題は input.toml の「題」から');
+    assert.equal(third.title, '三つめの作品', '題は input.toml の「題」から（巻の題）');
+    assert.equal(third.series, '三部作', 'シリーズ名は「シリーズ」の行から');
+    const plain = after.payload.novels.find((n) => n.id === 'second');
+    assert.equal(plain.series, '', 'シリーズでなければ空');
 
     // 一覧を経ずに直接開いても、見つからなければ取り直して開ける
     await fs.writeFile(path.join(workdir, 'works', 'third', 'manuscript', 'ch1', 'ch1-02.md'), '　二節目。\n');

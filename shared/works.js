@@ -58,8 +58,9 @@ function shorten(text, max = 30) {
 }
 
 /**
- * 作品の題を決める。原稿側に題の欄は無いので、ある物から順に使う。
- *   1. works/<作品>/input.toml の "題"      … 作者が付けた題。いちばん強い
+ * 作品の題を決める。ある物から順に使う。
+ *   1. works/<作品>/input.toml の "題"      … 作者が付けた題。**正本はここ**（原稿側の約束）。
+ *      シリーズものでは**巻の題**（シリーズ名は別の行 "シリーズ"。seriesTitle() が読む）
  *   2. work.toml の題（いま書いている作品のとき）
  *   3. input.toml の "題材" に（未定）を付けたもの
  *   4. フォルダの名前
@@ -71,6 +72,14 @@ export function workTitle({ name, workDir, input, current }) {
   const subject = input?.['']?.['題材'];
   if (subject) return `（未定）${shorten(subject)}`;
   return name;
+}
+
+/**
+ * シリーズ名。input.toml の "シリーズ"。シリーズものでなければ空。
+ * 「題」を一つだけ持つと、シリーズ名か巻の題か分からなくなるので、欄を分けてある。
+ */
+export function seriesTitle(input) {
+  return String(input?.['']?.['シリーズ'] || '').trim();
 }
 
 /** work.toml から「いま書いている作品」を読む。 */
@@ -95,6 +104,7 @@ export function expandLibrary(library, { names, inputs = {}, current = null }) {
       id: name,
       workDir,
       title: workTitle({ name, workDir, input: inputs[name], current }),
+      series: seriesTitle(inputs[name]),
       discovered: true,
     };
   });

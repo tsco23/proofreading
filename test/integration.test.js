@@ -319,7 +319,7 @@ test('ログインから指摘の書き戻し、前後の比較まで', async (t
 
     await git(['pull', '--rebase', 'origin', 'main'], seed);
     const root = await writeWork(seed, 'third');
-    await fs.writeFile(path.join(root, 'input.toml'), '"題材" = "三つめ"\n"題" = "三つめの作品"\n');
+    await fs.writeFile(path.join(root, 'input.toml'), '"題材" = "三つめ"\n"題" = "三つめの作品"\n"シリーズ" = "三部作"\n');
     await git(['add', '-A'], seed);
     await git(['commit', '-m', '作品を増やす'], seed);
     await git(['push', 'origin', 'main'], seed);
@@ -327,11 +327,15 @@ test('ログインから指摘の書き戻し、前後の比較まで', async (t
     const after = await call('GET', '/api/novels?sync=1');
     const third = after.payload.novels.find((n) => n.id === 'third');
     assert.ok(third, '増やした作品が一覧に出る');
-    assert.equal(third.title, '三つめの作品', '題は input.toml の「題」から');
+    assert.equal(third.title, '三つめの作品', '題は input.toml の「題」から（巻の題）');
+    assert.equal(third.series, '三部作', 'シリーズ名は「シリーズ」の行から');
+    const plain = after.payload.novels.find((n) => n.id === 'second');
+    assert.equal(plain.series, '', 'シリーズでなければ空');
 
     const toc = await call('GET', '/api/novels/third/toc');
     assert.equal(toc.status, 200, JSON.stringify(toc.payload));
     assert.equal(toc.payload.toc.chapters[0].label, '第一章 幌');
+    assert.equal(toc.payload.novel.series, '三部作', '読む画面にもシリーズ名を渡す');
   });
 
   await t.test('出ると読めなくなる', async () => {

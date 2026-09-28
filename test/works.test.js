@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseSimpleToml, discoverWorks, workTitle, currentWork, expandLibrary } from '../shared/works.js';
+import { parseSimpleToml, discoverWorks, workTitle, currentWork, expandLibrary, seriesTitle } from '../shared/works.js';
 
 test('作品の設定に使う TOML を読む', () => {
   const t = parseSimpleToml([
@@ -52,4 +52,25 @@ test('いま書いている作品を先頭に、残りは名前の順に並べ�
   assert.equal(list[0].title, '八人');
   assert.equal(list[0].repo, 'r', '置き場の設定を受け継ぐ');
   assert.equal(list[0].worksDir, undefined);
+});
+
+test('シリーズものは「題」が巻の題、「シリーズ」がシリーズ名', () => {
+  // 原稿側の実際の書き方（桁を揃える空白と、行末の注）
+  const input = parseSimpleToml([
+    '"題"       = "火球は地面を走る"   # 巻の題（作者 2026-09-28）',
+    '"シリーズ" = "八人の夏"           # シリーズ名（作者 2026-09-28）',
+    '"題材" = "小学校の同級生八人"',
+  ].join('\n'));
+  assert.equal(workTitle({ name: 'hachinin', workDir: 'works/hachinin', input }), '火球は地面を走る');
+  assert.equal(seriesTitle(input), '八人の夏');
+
+  const [one] = expandLibrary({ repo: 'r', branch: 'b', worksDir: 'works' }, { names: ['hachinin'], inputs: { hachinin: input } });
+  assert.equal(one.title, '火球は地面を走る');
+  assert.equal(one.series, '八人の夏');
+});
+
+test('雛形のまま（"題" = ""）なら、題は決まっていないものとして次の候補へ', () => {
+  const input = parseSimpleToml('"題" = ""\n"シリーズ" = ""\n"題材" = "日常の謎ミステリ"');
+  assert.equal(workTitle({ name: 'nazo', workDir: 'works/nazo', input }), '（未定）日常の謎ミステリ');
+  assert.equal(seriesTitle(input), '', 'シリーズでなければ空');
 });

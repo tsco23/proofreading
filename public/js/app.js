@@ -124,6 +124,8 @@ function novelCard(novel) {
     }),
   ];
   return el('article', { class: 'novel' }, [
+    // シリーズものは、シリーズ名を巻の題の上に添える（題は巻の題）
+    novel.series ? el('p', { class: 'novel__series', text: `『${novel.series}』` }) : null,
     el('h2', { text: novel.title }),
     el('dl', {}, [
       el('dt', { text: '原稿' }), el('dd', { text: `${novel.repo || ''}` }),
@@ -177,7 +179,7 @@ async function loadSection(sectionId, { offset = 0, flash = false } = {}) {
     const res = await api.section(state.novel.id, sectionId);
     state.section = res.section;
     state.annotations = res.annotations;
-    $('#reader-novel').textContent = state.novel.title;
+    $('#reader-novel').textContent = [state.novel.series, state.novel.title].filter(Boolean).join('　');
     const s = res.section;
     $('#reader-section').textContent = [s.label, s.viewpoint ? `視点 ${s.viewpoint}` : '', `${counts(s.chars)} 字`]
       .filter(Boolean).join('　');

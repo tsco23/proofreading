@@ -120,6 +120,7 @@ export const routes = [
       out.push({
         id: novel.id,
         title: novel.title,
+        series: novel.series || '',
         author: novel.author || '',
         repo: novel.repo || novel.localPath,
         branch: novel.branch,
@@ -155,7 +156,7 @@ export const routes = [
       }
     }
     return {
-      novel: { id: novel.id, title: novel.title, branch: novel.branch, repo: novel.repo || novel.localPath },
+      novel: { id: novel.id, title: novel.title, series: novel.series || '', branch: novel.branch, repo: novel.repo || novel.localPath },
       head: s.head,
       lastSync: s.lastSync,
       error: s.error,
